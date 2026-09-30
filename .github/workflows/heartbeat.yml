@@ -1,0 +1,31 @@
+# Cuore pulsante — tiene sveglio il progetto Supabase.
+# Il piano gratuito lo sospende dopo 7 giorni senza attività; questo file fa un
+# controllo ogni 8 ore. Basta un endpoint pubblico di salute: non serve alcuna chiave.
+name: heartbeat
+
+on:
+  schedule:
+    - cron: '17 */8 * * *'      # ogni 8 ore e 17 minuti
+  workflow_dispatch: {}         # si può anche lanciare a mano dalla scheda Actions
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Controllo che il progetto risponda
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          # endpoint pubblico: risponde 200 finché il progetto è attivo
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$SUPABASE_URL/auth/v1/health")
+          echo "auth/v1/health -> HTTP $code"
+          # controllo anche il database: con la chiave anon deve rispondere 401
+          # (cioè "sono vivo, ma non ti apro i dati"), che è il risultato atteso
+          code2=$(curl -s -o /dev/null -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/movimenti_conto?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "rest/v1/movimenti_conto -> HTTP $code2 (401 = ok, dati chiusi)"
+          if [ "$code" != "200" ]; then
+            echo "::error::il progetto Supabase non risponde: probabilmente è in pausa, riattivalo dal pannello"
+          fi
