@@ -179,6 +179,29 @@
   .err.show{display:block}
   .lock{text-align:center; color:var(--ink2); font-size:12px; margin-top:16px}
 
+  /* ---- scelta del mese in Home ---- */
+  .monthbar{display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px 14px;
+    padding:2px 4px 6px; scrollbar-width:none}
+  .monthbar::-webkit-scrollbar{display:none}
+  .mchip{flex:0 0 auto; min-width:62px; padding:7px 10px 6px; border-radius:13px; border:1px solid #e5e5ea;
+    background:#fff; font-family:inherit; text-align:center; line-height:1.15; box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .mchip b{display:block; font-size:14px; font-weight:700; letter-spacing:-.2px}
+  .mchip small{display:block; font-size:10.5px; color:var(--ink2); margin-top:2px}
+  .mchip i{display:block; height:3px; border-radius:2px; margin-top:5px; background:transparent}
+  .mchip[data-net="pos"] i{background:var(--green)}
+  .mchip[data-net="neg"] i{background:var(--red)}
+  .mchip[data-net="zero"] i{background:#d9d9de}
+  .mchip.on{border-color:transparent; background:#16233c; color:#fff}
+  .mchip.on small{color:rgba(255,255,255,.72)}
+  .mchip.on i{background:rgba(255,255,255,.55)}
+
+  /* ---- variazioni e cifre ---- */
+  .delta{font-size:12.5px; font-weight:600; margin-top:3px; display:inline-flex; align-items:center; gap:3px}
+  .delta.good{color:var(--green)} .delta.bad{color:var(--red)} .delta.same{color:var(--ink2)}
+  .save-bar{height:9px; border-radius:5px; background:#ececf0; overflow:hidden; margin:8px 0 6px}
+  .save-bar i{display:block; height:100%; background:linear-gradient(90deg,#0e5f3f,#12a06b)}
+  .big{font-size:22px; font-weight:800; letter-spacing:-.6px; font-variant-numeric:tabular-nums}
+
   /* ---- chart ---- */
   .chart-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px; padding:0 4px}
   .bar{cursor:pointer}
@@ -263,6 +286,13 @@
    CHIAVE= Supabase → Project Settings → Data API → anon public
    EMAIL = l'unica email autorizzata (deve combaciare con setup.sql)
    ============================================================ */
+/* NUMERO DI VERSIONE DELL'APP.
+   Cambialo (r3 -> r4, r5...) ogni volta che modifichi questo file: serve a dire al
+   telefono "butta via la copia invecchiata e prendi questa". Lo fa per te lo script
+   app/sincronizza-cache.mjs, che chiama anche i test. */
+const APP_REV = 'r6';
+const APP_DATA = '30 settembre 2026';
+
 const FILE_CONFIG = {
   SUPABASE_URL: 'https://________________.supabase.co',
   SUPABASE_KEY: 'INCOLLA_QUI_LA_TUA_ANON_PUBLIC_KEY',
@@ -369,6 +399,26 @@ function lastMonths(n){
   const start = new Date(now.getFullYear(), now.getMonth() - (n-1), 1);
   return monthsList(start, now);
 }
+function daysInMonth(k){
+  const p = String(k).split('-');
+  return new Date(+p[0], +p[1], 0).getDate();
+}
+/** Quanti giorni "pesano" nel mese: per il mese in corso solo quelli passati. */
+function giorniDelMese(k){
+  const oggi = monthKey(todayISO());
+  if (k === oggi) return new Date().getDate();
+  if (k > oggi) return 0;
+  return daysInMonth(k);
+}
+function monthNext(k){
+  const p = String(k).split('-'); const d = new Date(+p[0], +p[1], 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+/** Variazione percentuale: null se il mese di confronto è vuoto (0). */
+function variazione(attuale, prima){
+  if (!prima) return null;
+  return Math.round((attuale - prima) / prima * 100);
+}
 function prevMonth(k){
   const p = k.split('-'); const d = new Date(+p[0], +p[1]-2, 1);
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
@@ -413,6 +463,7 @@ const S = {
   sb: null, user: null, view: 'home',
   movimenti: [], categorie: [],
   meseSel: 'tutti', filtroTipo: 'tutti', ricerca: '',
+  meseHome: '',          // mese mostrato in Home (vuoto = mese in corso)
   caricato: false, urlCache: new Map(), dirty: true,
   sheetFiles: [], attSizes: {}, editingId: null
 };
@@ -501,7 +552,7 @@ function render(){
   document.getElementById('view-title').textContent =
     ({home:'Home', movimenti:'Movimenti', categorie:'Categorie', profilo:'Profilo'})[S.view];
   document.getElementById('view-sub').textContent =
-    S.view === 'home' ? monthLabel(monthKey(todayISO())) : '';
+    S.view === 'home' ? monthLabel(homeMonth()) : '';
   const c = document.getElementById('content');
   if (!S.caricato){ c.innerHTML = '<div class="spinner"></div>'; return; }
   if (S.view === 'home') return viewHome(c);
@@ -510,53 +561,151 @@ function render(){
   if (S.view === 'profilo') return viewProfilo(c);
 }
 
+/* ============================================================
+   5. RENDER — HOME (con scelta del mese: uno storico)
+   ============================================================ */
+function homeMonth(){ return S.meseHome || monthKey(todayISO()); }
+
+/** Tutti i mesi da mostrare nella barra: gli ultimi 12 piu' quelli con movimenti. */
+function homeMonths(){
+  const set = new Set(lastMonths(12));
+  for (const m of S.movimenti) set.add(m.mese || monthKey(m.data));
+  const oggi = monthKey(todayISO());
+  set.add(oggi);
+  return Array.from(set).filter(k => k <= oggi).sort().reverse();
+}
+function deltaHtml(attuale, prima, invertito){
+  const v = variazione(attuale, prima);
+  if (v === null) return '<div class="delta same">primo mese con questi dati</div>';
+  if (v === 0) return '<div class="delta same">uguale a ' + esc(monthLabelShort(prevMonth(homeMonth()))) + '</div>';
+  const meglio = invertito ? v < 0 : v > 0;
+  return '<div class="delta ' + (meglio ? 'good' : 'bad') + '">' + (v > 0 ? '▲ +' : '▼ ') + v + '% <span style="font-weight:400">vs ' +
+    esc(monthLabelShort(prevMonth(homeMonth()))) + '</span></div>';
+}
+function monthBarHtml(mesi, byMonth, sel){
+  return '<div class="monthbar" id="monthbar">' + mesi.map(m => {
+    const o = byMonth[m] || {entrata:0, uscita:0};
+    const net = (o.entrata || 0) - (o.uscita || 0);
+    return '<button type="button" class="mchip' + (m === sel ? ' on' : '') + '" data-net="' +
+      (net > 0 ? 'pos' : net < 0 ? 'neg' : 'zero') + '" data-action="home-month" data-v="' + m + '">' +
+      '<b>' + esc(MESI_C[parseInt(m.split('-')[1],10)-1]) + '</b><small>' + esc(m.split('-')[0]) + '</small>' +
+      '<i></i></button>';
+  }).join('') + '</div>';
+}
 function viewHome(el){
   const all = summarize(S.movimenti);
-  const mk = monthKey(todayISO());
+  const mk = homeMonth();
   const cur = all.byMonth[mk] || {entrata:0, uscita:0, count:0};
-  const prev = all.byMonth[prevMonth(mk)] || {entrata:0, uscita:0};
+  const prec = all.byMonth[prevMonth(mk)] || {entrata:0, uscita:0, count:0};
   const netCur = cur.entrata - cur.uscita;
-  const netPrev = prev.entrata - prev.uscita;
-  const deltaTxt = (netPrev === 0) ? '' : (netCur >= netPrev ? '↑ ' : '↓ ') +
-    fmtMoney(Math.abs(netCur - netPrev)) + ' vs ' + monthLabelShort(prevMonth(mk));
-  const mesi = lastMonths(12);
-  const movMese = S.movimenti.filter(m => (m.mese || monthKey(m.data)) === mk);
-  const cat = sumByCategory(movMese, S.categorie).slice(0,6);
-  const totCat = cat.reduce((a,b) => a + b.tot, 0) || 1;
+  const giorni = giorniDelMese(mk);
+  const mediaGiorno = giorni > 0 ? cur.uscita / giorni : 0;
+  const mesi = homeMonths();
+  const movMese = S.movimenti.filter(m => (m.mese || monthKey(m.data)) === mk)
+                              .slice().sort((a,b) => (a.data < b.data ? 1 : a.data > b.data ? -1 : 0));
+  const cat = sumByCategory(movMese, S.categorie);
+  const topCat = cat.slice(0,6);
+  const totCat = topCat.reduce((a,b) => a + b.tot, 0) || 1;
+  const risparmio = cur.entrata > 0 ? Math.max(0, Math.min(100, netCur / cur.entrata * 100)) : null;
+
+  // il giorno in cui hai speso di piu'
+  const perGiorno = {};
+  for (const m of movMese){
+    if (m.tipo !== 'uscita') continue;
+    perGiorno[m.data] = (perGiorno[m.data] || 0) + Number(m.importo || 0);
+  }
+  const giornoTop = Object.keys(perGiorno).sort((a,b) => perGiorno[b] - perGiorno[a])[0];
+  const nIlGiorno = giornoTop ? movMese.filter(m => m.data === giornoTop && m.tipo === 'uscita').length : 0;
+  // la spesa singola piu' grossa
+  const spesaTop = movMese.filter(m => m.tipo === 'uscita').sort((a,b) => b.importo - a.importo)[0];
 
   el.innerHTML =
+    monthBarHtml(mesi, all.byMonth, mk) +
     '<div class="balance">' +
-      '<div class="lbl">Saldo totale del conto</div>' +
-      '<div class="val">' + fmtMoneySigned(all.saldo) + '</div>' +
-      '<div class="row"><span>📥 Entrate ' + fmtMoney(all.entrata) + '</span><span>📤 Uscite ' + fmtMoney(all.uscita) + '</span></div>' +
+      '<div class="lbl">Saldo di ' + esc(monthLabel(mk)) + '</div>' +
+      '<div class="val ' + (netCur < 0 ? 'neg' : '') + '">' + fmtMoneySigned(netCur) + '</div>' +
+      '<div class="row"><span>📥 ' + fmtMoney(cur.entrata) + '</span><span>📤 ' + fmtMoney(cur.uscita) + '</span></div>' +
+      '<div class="sub" style="font-size:12px;color:var(--ink2);margin-top:6px">' +
+        (mk === monthKey(todayISO()) ? 'in corso' : 'mese chiuso') + ' · ' +
+        (netCur >= 0 ? 'hai risparmiato ' + fmtMoney(netCur) : 'in deficit di ' + fmtMoney(-netCur)) + '</div>' +
     '</div>' +
     '<div class="kpi-grid">' +
-      '<div class="kpi"><div class="lbl">Questo mese · entrate</div><div class="val pos">' + fmtMoney(cur.entrata) + '</div>' +
-        '<div class="sub">' + (deltaTxt || monthLabel(mk)) + '</div></div>' +
-      '<div class="kpi"><div class="lbl">Questo mese · uscite</div><div class="val neg">' + fmtMoney(cur.uscita) + '</div>' +
-        '<div class="sub">' + cur.count + ' moviment' + (cur.count === 1 ? 'o' : 'i') + '</div></div>' +
+      '<div class="kpi"><div class="lbl">Entrate del mese</div><div class="val pos">' + fmtMoney(cur.entrata) + '</div>' +
+        deltaHtml(cur.entrata, prec.entrata, false) + '</div>' +
+      '<div class="kpi"><div class="lbl">Uscite del mese</div><div class="val neg">' + fmtMoney(cur.uscita) + '</div>' +
+        deltaHtml(cur.uscita, prec.uscita, true) + '</div>' +
+      '<div class="kpi"><div class="lbl">Media al giorno</div><div class="val">' + fmtMoney(mediaGiorno) + '</div>' +
+        '<div class="sub">' + (giorni ? 'su ' + giorni + ' ' + (giorni === 1 ? 'giorno' : 'giorni') : 'nessun dato') + '</div></div>' +
+      '<div class="kpi"><div class="lbl">Movimenti</div><div class="val">' + cur.count + '</div>' +
+        '<div class="sub">' + (cur.count ? (movMese.filter(m => m.tipo === 'entrata').length + ' in entrata, ' +
+          movMese.filter(m => m.tipo === 'uscita').length + ' in uscita') : 'nessuna registrazione') + '</div></div>' +
+    '</div>' +
+    '<div class="card"><h2>Come sta andando ' + esc(monthLabel(mk)) + '</h2>' +
+      '<div class="row" style="justify-content:space-between"><span style="color:var(--ink2)">Quanta parte dell\'entrata resta</span>' +
+        '<b>' + (risparmio === null ? '—' : risparmio + '%') + '</b></div>' +
+      '<div class="save-bar"><i style="width:' + (risparmio === null ? 0 : risparmio) + '%"></i></div>' +
+      '<div class="hint" style="margin:0">' +
+        (risparmio === null
+          ? 'Non risultano entrate in questo mese: appena ne registri una vedrai qui quanto ti resta.'
+          : (netCur >= 0 ? 'Su 100 € entrati ne restano ' + risparmio + ' dopo le spese.'
+                         : 'In questo mese hai speso più di quanto è entrato.')) +
+      '</div>' +
+      (giornoTop || spesaTop ? '<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">' +
+        (giornoTop ? '<div class="row" style="justify-content:space-between;margin-bottom:6px"><span>🗓 Giorno più spendaccione</span>' +
+          '<b>' + fmtMoney(perGiorno[giornoTop]) + '</b></div>' +
+          '<div class="hint" style="margin:0 0 8px">' + esc(dayLabel(giornoTop)) + ' · ' + nIlGiorno + ' acquisti</div>' : '') +
+        (spesaTop ? '<div class="row" style="justify-content:space-between"><span>🔎 Spesa più grossa</span>' +
+          '<b>' + fmtMoney(spesaTop.importo) + '</b></div>' +
+          '<div class="hint" style="margin:0">' + esc(spesaTop.descrizione || 'Senza descrizione') +
+          (spesaTop.fornitore ? ' · ' + esc(spesaTop.fornitore) : '') + ' · ' + esc(dayLabel(spesaTop.data)) + '</div>' : '') +
+        '</div>' : '') +
     '</div>' +
     '<div class="card">' +
-      '<h2>Ultimi 12 mesi</h2><div class="chart-wrap">' + chartHtml(mesi, all.byMonth) + '</div>' +
+      '<h2>Ultimi 12 mesi <span class="mut" style="font-weight:400;font-size:13px">· tocca una barra</span></h2>' +
+      '<div class="chart-wrap">' + chartHtml(mesi.slice(0,12).reverse(), all.byMonth, mk) + '</div>' +
       '<div class="legend"><span><i class="dot" style="background:var(--green)"></i>Entrate</span>' +
       '<span><i class="dot" style="background:var(--red)"></i>Uscite</span>' +
-      '<span class="mut" style="margin-left:auto">tocca una barra</span></div>' +
+      '<span class="mut" style="margin-left:auto">la barra evidenziata è il mese scelto</span></div>' +
     '</div>' +
-    (cat.length ? '<div class="card"><h2>Uscite di ' + esc(monthLabel(mk)) + '</h2>' +
-      cat.map(x =>
+    (topCat.length ? '<div class="card"><h2>Uscite per categoria · ' + esc(monthLabel(mk)) + '</h2>' +
+      topCat.map(x =>
         '<div class="row-item"><div class="emoji">' + esc(x.emoji) + '</div><div class="row-main">' +
         '<div class="row-t">' + esc(x.nome) + '</div><div class="prog"><i style="width:' +
         Math.max(3, Math.round(100*x.tot/totCat)) + '%;background:var(--red)"></i></div></div>' +
-        '<div class="row-a">' + fmtMoney(x.tot) + '</div></div>').join('') + '</div>' : '') +
-    '<div class="card"><h2>Ultime registrazioni</h2>' +
-      (S.movimenti.length
-        ? listHtml(S.movimenti.slice(0,6)) +
-          '<button class="btn" data-action="go" data-v="movimenti" style="margin-top:12px">Vedi tutti i movimenti</button>'
-        : '<div class="empty"><b>Nessun movimento registrato</b>Tocca il pulsante + per aggiungere la prima spesa o la prima entrata.</div>') +
+        '<div class="row-a">' + fmtMoney(x.tot) + '</div></div>').join('') + '</div>'
+      : '<div class="card"><h2>Uscite per categoria</h2><div class="empty"><b>Nessuna uscita in ' +
+        esc(monthLabel(mk)) + '</b>Tocca + per registrarne una.</div></div>') +
+    '<div class="card"><h2>' + (mk === monthKey(todayISO()) ? 'Ultime registrazioni' : 'Registrazioni di ' + esc(monthLabel(mk))) + '</h2>' +
+      (movMese.length
+        ? listHtml(movMese.slice(0,6)) +
+          '<button class="btn" data-action="vedi-mese" style="margin-top:12px">Vedi tutti i movimenti di ' +
+            esc(monthLabel(mk)) + '</button>'
+        : '<div class="empty"><b>Nessun movimento in ' + esc(monthLabel(mk)) + '</b>' +
+          '<button class="btn" data-action="add-in-month" style="margin-top:12px">+ Aggiungi a ' +
+          esc(monthLabel(mk)) + '</button></div>') +
+    '</div>' +
+    '<div class="card"><h2>Il conto in tutti i mesi</h2>' +
+      '<div class="row" style="justify-content:space-between"><span class="mut">Entrate registrate</span>' +
+        '<b class="pos">+' + fmtMoney(all.entrata) + '</b></div>' +
+      '<div class="row" style="justify-content:space-between"><span class="mut">Uscite registrate</span>' +
+        '<b class="neg">−' + fmtMoney(all.uscita) + '</b></div>' +
+      '<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;margin-top:4px">' +
+        '<span>Saldo totale del conto</span><b class="big ' + (all.saldo < 0 ? 'neg' : '') + '">' +
+        fmtMoneySigned(all.saldo) + '</b></div>' +
+      (S.movimenti.length ? '<div class="hint" style="margin:0">' + S.movimenti.length + ' movimenti, dal ' +
+        esc(dayLabel(S.movimenti.reduce(function(a,b){ return !a || b.data < a.data ? b : a; }, null).data)) +
+        ' al ' + esc(dayLabel(S.movimenti.reduce(function(a,b){ return !a || b.data > a.data ? b : a; }, null).data)) +
+        '</div>' : '') +
     '</div>';
+  // la barra dei mesi parte già sul mese scelto
+  const barra = document.getElementById('monthbar');
+  const chip = barra && barra.querySelector('.mchip.on');
+  if (barra && chip && barra.scrollWidth > barra.clientWidth){
+    barra.scrollLeft = Math.max(0, chip.offsetLeft - 12);
+  }
 }
 
-function chartHtml(mesi, byMonth){
+function chartHtml(mesi, byMonth, sel){
   const W = 300, H = 128, pad = 6;
   const max = Math.max(1, ...mesi.map(m => { const o = byMonth[m] || {}; return Math.max(o.entrata||0, o.uscita||0); }));
   const bw = W / mesi.length;
@@ -566,13 +715,16 @@ function chartHtml(mesi, byMonth){
     const he = Math.round((o.entrata || 0) / max * (H - 30));
     const hu = Math.round((o.uscita || 0) / max * (H - 30));
     const x = i * bw + bw * 0.16, w = bw * 0.30;
-    bars += '<g class="bar" data-action="pick-month" data-v="' + m + '"><title>' + monthLabel(m) +
+    const on = (sel && m === sel);
+    bars += '<g class="bar" data-action="home-month" data-v="' + m + '"><title>' + monthLabel(m) +
       ' — in ' + fmtMoney(o.entrata||0) + ' / out ' + fmtMoney(o.uscita||0) + '</title>' +
-      '<rect x="' + (x-3) + '" y="0" width="' + (w*2+6) + '" height="' + H + '" fill="transparent"/>' +
+      '<rect x="' + (x-3) + '" y="0" width="' + (w*2+6) + '" height="' + H + '" fill="' +
+        (on ? 'rgba(22,35,60,.08)' : 'transparent') + '" rx="4"/>' +
       '<rect x="' + x + '" y="' + (H - he) + '" width="' + w + '" height="' + Math.max(he, o.entrata?2:0) + '" rx="2" fill="#1a9e56"/>' +
       '<rect x="' + (x + w + 1.5) + '" y="' + (H - hu) + '" width="' + w + '" height="' + Math.max(hu, o.uscita?2:0) + '" rx="2" fill="#d64545"/></g>';
-    labels += '<text x="' + (i*bw + bw/2) + '" y="' + (H+13) + '" text-anchor="middle" font-size="9" fill="#8a8a8e">' +
-      (i % 2 === 0 ? esc(MESI_C[parseInt(m.split('-')[1],10)-1]) : '') + '</text>';
+    labels += '<text x="' + (i*bw + bw/2) + '" y="' + (H+13) + '" text-anchor="middle" font-size="' + (on ? 11 : 9) +
+      '" font-weight="' + (on ? '700' : '400') + '" fill="' + (on ? '#16233c' : '#8a8a8e') + '">' +
+      (on || i % 2 === 0 ? esc(MESI_C[parseInt(m.split('-')[1],10)-1]) : '') + '</text>';
   });
   return '<svg viewBox="0 -6 ' + (W + pad*2) + ' ' + (H + 26) + '" width="' + Math.max(W, 300) + '" height="' + (H+24) + '" style="display:block">' +
     '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" stroke="#e5e5ea"/>' + bars + labels + '</svg>';
@@ -702,6 +854,8 @@ function viewProfilo(el){
       '<button class="btn" data-action="pass" style="margin-bottom:10px">🔑 Cambia password</button>' +
       '<button class="btn" data-action="config" style="margin-bottom:10px">⚙️ Impostazioni e configurazione</button>' +
       '<div class="hint">Gli allegati (scontrini, fatture) sono in uno spazio privato: nessun link pubblico, i link temporanei scadono dopo 10 minuti.</div>' +
+      '<div class="hint" id="app-ver" style="margin-top:10px">Versione dell\'app: <b>' + APP_REV + '</b> · ' + esc(APP_DATA) +
+        '<br>Se l\'app ti sembra vecchia: chiudila del tutto dalla schermata Home e riaprila.</div>' +
     '</div>' +
     '<div class="card"><h2>I tuoi dati</h2>' +
       '<button class="btn" data-action="export">⬇️ Esporta tutto in CSV (Excel)</button>' +
@@ -735,10 +889,10 @@ function catButtons(tipo, selId){
     '<span>' + esc(c.emoji) + '</span>' + esc(c.nome) + '</button>').join('') + '</div>';
 }
 
-function sheetMovimento(m){
+function sheetMovimento(m, dataIniziale){
   const isNew = !m;
   const tipo = m ? m.tipo : 'uscita';
-  const data = m ? m.data : todayISO();
+  const data = m ? m.data : (dataIniziale || todayISO());
   S.editingId = m ? m.id : null;
   S.sheetFiles = [];
   S.pickCat = m ? (m.categoria_id || null) : null;
@@ -948,6 +1102,11 @@ async function saveMovimento(modify){
 
   closeSheet(); invalidate();
   try { await reload(); } catch (e){ render(); }
+  // se stai guardando un mese diverso da quello toccato, la Home si sposta li'
+  if (S.view === 'home'){
+    const toccato = rows.length ? (rows[rows.length-1].mese || monthKey(rows[rows.length-1].data)) : null;
+    if (toccato && toccato !== homeMonth()){ S.meseHome = toccato; render(); }
+  }
   toast(rows.length > 1 ? rows.length + ' movimenti registrati ✓' : 'Movimento registrato ✓');
 }
 
@@ -1189,6 +1348,9 @@ document.addEventListener('click', async (ev) => {
     toast('CSV pronto (' + S.movimenti.length + ' movimenti)');
   }
   else if (a === 'filtro'){ S.filtroTipo = v; render(); }
+  else if (a === 'home-month'){ S.meseHome = v; render(); }
+  else if (a === 'vedi-mese'){ S.meseSel = homeMonth(); S.filtroTipo = 'tutti'; S.ricerca = ''; S.view = 'movimenti'; syncTabs(); render(); window.scrollTo(0,0); }
+  else if (a === 'add-in-month'){ sheetMovimento(null, homeMonth() + '-01'); }
   else if (a === 'pick-month'){ S.meseSel = v; S.view = 'movimenti'; syncTabs(); render(); window.scrollTo(0,0); }
   ev.preventDefault();
 });
