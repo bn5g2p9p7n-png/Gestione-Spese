@@ -1,6 +1,8 @@
 /* Service worker — rende l'app utilizzabile anche senza rete (i dati restano sul dispositivo
-   fino alla prossima connessione). Versione = nome cache: cambiala per forzare l'aggiornamento. */
-const VERSIONE = 'conto-v1';
+   fino alla prossima connessione). Versione = nome cache: **cambiala ogni volta che
+   modifichi index.html**, altrimenti l'app già installata continua a mostrare la
+   versione vecchia. Esempio: conto-v1, poi conto-v2. */
+const VERSIONE = 'conto-v2';
 const RISORSE = ['./', './index.html', './supabase.js', './manifest.webmanifest',
                  './pwa-192.png', './pwa-512.png', './apple-touch-icon.png'];
 
