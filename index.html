@@ -1043,7 +1043,12 @@ function sheetConfig(){
       '<input id="cf-key" type="password" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="eyJhbGciOi…" value="' + esc(CFG.SUPABASE_KEY) + '">' +
       '<button type="button" class="eye" data-action="toggle-key" id="cf-key-eye">👁️ Mostrare la chiave</button>' +
       '<div class="hint">Stessa pagina → chiave "anon public" (le più recenti si chiamano "publishable").<br>È una chiave pubblica: coperta qui solo per non lasciarla in vista sul telefono. Non usare mai la chiave "service_role".</div>' +
-      '<label class="f" for="cf-email">3 · La tua email (l’unico accesso ammesso)</label>' +
+      '<label class="f" for="cf-monitor" style="margin-top:16px">4 · Indirizzo da mettere su UptimeRobot (passo 4.2)</label>' +
+      '<input id="cf-monitor" type="text" readonly autocapitalize="none" spellcheck="false" placeholder="prema il bottone qui sotto: l’indirizzo compare già copiato">' +
+      '<button type="button" class="btn" data-action="monitor-url" style="margin-top:8px">🔗 Crea e verifica l’indirizzo per UptimeRobot</button>' +
+      '<div class="hint">Fa tutto lui: costruisce l’indirizzo, lo copia e controlla che risponda.<br>' +
+      'Poi vai su UptimeRobot → il tuo monitor → <b>Edit</b> → incolla nel campo URL → <b>Save</b>.</div>' +
+      '<label class="f" for="cf-email" style="margin-top:16px">3 · La tua email (l’unico accesso ammesso)</label>' +
       '<input id="cf-email" type="email" autocapitalize="none" spellcheck="false" placeholder="nome@esempio.com" value="' + esc(CFG.EMAIL_OWNER) + '">' +
       '<div class="hint">Deve essere la stessa email che hai messo in setup.sql e con cui ti sei registrato.</div>' +
     '</div>' +
@@ -1054,6 +1059,28 @@ function sheetConfig(){
     '<div class="btn-row"><button type="button" class="btn primary" data-action="config-save">✅ Salva</button></div>' +
     (inFile ? '' : '<div class="sheet-card" style="margin-top:12px"><div class="hint" style="margin:0">' +
       'I valori salvati qui valgono solo su questo dispositivo. Se apri l’app su un altro telefono o computer, ripeti la configurazione.</div></div>'));
+}
+
+/* Costruisce l'indirizzo da mettere su UptimeRobot, lo copia negli appunti e
+   verifica che risponda: cosi l'utente non deve comporre nulla a mano. */
+async function monitorUrl(){
+  const url  = (document.getElementById('cf-url').value || '').trim().replace(/\/$/, '');
+  const key  = (document.getElementById('cf-key').value || '').trim();
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)){ toast('Prima controlla il campo 1: l\'URL non sembra giusto'); return; }
+  if (key.length < 30){ toast('Prima incolla la chiave anon public nel campo 2 (tocca l\'occhio se è coperta)'); return; }
+  const indirizzo = url + '/rest/v1/ping_salute?select=id&apikey=' + encodeURIComponent(key);
+  const campo = document.getElementById('cf-monitor');
+  if (campo){ campo.value = indirizzo; }
+  try { await navigator.clipboard.writeText(indirizzo); toast('Indirizzo copiato negli appunti 📋'); }
+  catch (e) { /* nessun permesso appunti: il campo resta selezionabile a mano */ }
+  if (campo){ try { campo.focus(); campo.select(); } catch (e) {} }
+  try {
+    const r = await fetch(indirizzo, { headers: { apikey: key, Accept: 'application/json' } });
+    if (r.status === 200) toast('✅ Funziona: risponde 200. Incollalo su UptimeRobot e salva.');
+    else if (r.status === 404) toast('⚠️ Risponde 404: esegui app/ping.sql nel Supabase SQL Editor, poi riprova.');
+    else if (r.status === 401) toast('⚠️ Risponde 401: la chiave del campo 2 non è quella giusta anon public.');
+    else toast('Risponde HTTP ' + r.status + ': meglio ricontrollare i campi 1 e 2.');
+  } catch (e) { toast('Indirizzo pronto. Incollalo in Safari per controllare che dia [{\"id\":1}]'); }
 }
 
 async function doSaveConfig(){
@@ -1127,6 +1154,15 @@ document.addEventListener('click', async (ev) => {
   else if (a === 'pass'){ sheetPassword(); }
   else if (a === 'config'){ sheetConfig(); }
   else if (a === 'config-save'){ await doSaveConfig(); }
+  else if (a === 'monitor-url'){ await monitorUrl(); }
+  else if (a === 'toggle-key'){
+    const inp = document.getElementById('cf-key'), occhio = document.getElementById('cf-key-eye');
+    if (inp){
+      const mostra = inp.type === 'password';
+      inp.type = mostra ? 'text' : 'password';
+      if (occhio) occhio.textContent = mostra ? '🙈 Nascondere la chiave' : '👁️ Mostrare la chiave';
+    }
+  }
   else if (a === 'pass-save'){
     const p1 = document.getElementById('p1').value, p2 = document.getElementById('p2').value;
     if (p1.length < 8){ toast('Minimo 8 caratteri'); return; }
