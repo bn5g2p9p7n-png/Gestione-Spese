@@ -158,6 +158,12 @@
     border:none; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0}
   .clip{font-size:12px; color:var(--ink2); font-weight:600}
 
+  /* ---- pulsante impostazioni: piccolo, in un angolo, non d-disturba ---- */
+  .gear{position:fixed; top:calc(12px + env(safe-area-inset-top)); right:14px; z-index:41;
+    width:38px; height:38px; border-radius:50%; border:1px solid #e5e5ea; background:rgba(255,255,255,.86);
+    backdrop-filter:blur(8px); font-size:17px; line-height:1; color:#6b6b70; box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .gear:active{background:#f0f0f3}
+  .eye{margin-top:8px; background:none; border:none; padding:0; font-size:13px; color:#0a6cff; font-family:inherit}
   /* ---- login: pagina a se', a tutto schermo, che non si scorre ---- */
   #login{position:fixed; inset:0; z-index:40; overflow-y:auto; display:grid; place-items:center;
     padding:26px 20px calc(26px + env(safe-area-inset-bottom));
@@ -197,6 +203,7 @@
 
 <!-- ===================== LOGIN ===================== -->
 <div id="login" hidden>
+  <button class="gear" id="li-config" type="button" aria-label="Impostazioni" title="Impostazioni">⚙️</button>
   <div class="login-box">
     <div class="logo">💶</div>
     <h1>Il Mio Conto</h1>
@@ -209,7 +216,7 @@
       <div class="err" id="li-err"></div>
       <button class="btn primary" id="li-btn" style="margin-top:16px">Entra</button>
       <button class="btn ghost" id="li-reset" style="margin-top:6px">Password dimenticata?</button>
-      <button class="btn ghost" id="li-config" style="margin-top:2px">Impostazioni</button>
+      <div class="hint" id="li-cfg-hint" style="margin-top:10px">Prima volta? Tocca la ⚙️ in alto a destra per incollare URL e chiave.</div>
     </div>
     <div class="lock">🔒 Accesso riservato a un solo account: chiunque altro<br>viene bloccato direttamente dal database.</div>
   </div>
@@ -1033,12 +1040,17 @@ function sheetConfig(){
       '<input id="cf-url" type="text" autocapitalize="none" spellcheck="false" placeholder="https://abcdefgh.supabase.co" value="' + esc(CFG.SUPABASE_URL) + '">' +
       '<div class="hint">Supabase → Project Settings → Data API (o API) → Project URL</div>' +
       '<label class="f" for="cf-key">2 · Chiave anon public (o publishable)</label>' +
-      '<input id="cf-key" type="text" autocapitalize="none" spellcheck="false" placeholder="eyJhbGciOi…" value="' + esc(CFG.SUPABASE_KEY) + '">' +
-      '<div class="hint">Stessa pagina → chiave "anon public" (le più recenti si chiamano "publishable").<br>È una chiave pubblica: puoi mostrarla pure a chi vuoi. Non usare mai la chiave "service_role".</div>' +
+      '<input id="cf-key" type="password" autocapitalize="none" autocomplete="off" spellcheck="false" placeholder="eyJhbGciOi…" value="' + esc(CFG.SUPABASE_KEY) + '">' +
+      '<button type="button" class="eye" data-action="toggle-key" id="cf-key-eye">👁️ Mostrare la chiave</button>' +
+      '<div class="hint">Stessa pagina → chiave "anon public" (le più recenti si chiamano "publishable").<br>È una chiave pubblica: coperta qui solo per non lasciarla in vista sul telefono. Non usare mai la chiave "service_role".</div>' +
       '<label class="f" for="cf-email">3 · La tua email (l’unico accesso ammesso)</label>' +
       '<input id="cf-email" type="email" autocapitalize="none" spellcheck="false" placeholder="nome@esempio.com" value="' + esc(CFG.EMAIL_OWNER) + '">' +
       '<div class="hint">Deve essere la stessa email che hai messo in setup.sql e con cui ti sei registrato.</div>' +
     '</div>' +
+    '<div class="sheet-card"><div class="hint" style="margin:0">🔒 <b>Non è un segreto, quindi non ti preoccupare se la vedi.</b><br>' +
+      'URL e chiave anon public stanno dentro il codice di ogni app Supabase: sono come un nome utente, non una password. ' +
+      'Anche se qualcuno li copiasse, <b>non vedrebbe i tuoi movimenti</b>: il database lascia passare solo chi è entrato con la tua email. ' +
+      'A proteggerli davvero sono la tua password e le regole del database.</div></div>' +
     '<div class="btn-row"><button type="button" class="btn primary" data-action="config-save">✅ Salva</button></div>' +
     (inFile ? '' : '<div class="sheet-card" style="margin-top:12px"><div class="hint" style="margin:0">' +
       'I valori salvati qui valgono solo su questo dispositivo. Se apri l’app su un altro telefono o computer, ripeti la configurazione.</div></div>'));
@@ -1218,6 +1230,8 @@ function showLogin(){
   window.scrollTo(0, 0);
   const e = document.getElementById('li-email');
   if (e && !e.value) e.value = window.localStorage.getItem('conto_email') || '';
+  const h = document.getElementById('li-cfg-hint');
+  if (h) h.hidden = configPronta();
 }
 /** Carica i dati e poi chiude lo splash: l'app appare pronta. */
 async function attendiApertura(anim){
@@ -1312,6 +1326,7 @@ async function boot(){
 document.getElementById('li-btn').addEventListener('click', doLogin);
 document.getElementById('li-reset').addEventListener('click', doReset);
 document.getElementById('li-config').addEventListener('click', () => sheetConfig());
+document.getElementById('li-cfg-hint')?.addEventListener('click', () => sheetConfig());
 document.getElementById('li-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
 document.getElementById('li-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('li-pass').focus(); });
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
