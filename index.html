@@ -161,6 +161,15 @@
   .grab{width:38px;height:5px;border-radius:3px;background:#d8d8dd;margin:8px auto 0}
 
   /* ---- attachments ---- */
+  /* ---- avviso "c'è una versione nuova" ---- */
+  .upd{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; max-width:640px; margin:10px auto 0;
+    background:#fff8e6; border:1px solid #f2d38a; border-radius:13px; padding:10px 12px; font-size:13px; color:#6b4e00}
+  .upd[hidden]{display:none}
+  .upd b{flex:1 1 100%; font-size:13.5px}
+  .upd span{flex:1; opacity:.85; font-size:12.5px}
+  .upd button{border:0; background:#f0a500; color:#fff; font:inherit; font-weight:600; font-size:13px;
+    padding:8px 12px; border-radius:9px}
+
   /* ---- visualizzatore allegati a tutto schermo ---- */
   .viewer{position:fixed; inset:0; z-index:130; background:rgba(8,10,14,.96); display:flex; flex-direction:column}
   .viewer[hidden]{display:none}
@@ -290,6 +299,11 @@
       <button class="avatar" id="btn-profile" aria-label="Profilo">👤</button>
     </div>
   </div>
+  <div class="upd" id="upd" hidden>
+    <b>C'è una versione nuova dell'app</b>
+    <span id="upd-txt">Tocca "Aggiorna" per usarla.</span>
+    <button type="button" data-action="aggiorna">↻ Aggiorna</button>
+  </div>
   <div class="content" id="content"></div>
   <button class="addbtn" id="btn-add" aria-label="Nuovo movimento">+</button>
   <nav class="tabbar">
@@ -326,7 +340,7 @@
    Cambialo (r3 -> r4, r5...) ogni volta che modifichi questo file: serve a dire al
    telefono "butta via la copia invecchiata e prendi questa". Lo fa per te lo script
    app/sincronizza-cache.mjs, che chiama anche i test. */
-const APP_REV = 'r8';
+const APP_REV = 'r9';
 const APP_DATA = '30 settembre 2026';
 
 const FILE_CONFIG = {
@@ -583,6 +597,75 @@ async function signedUrl(path){
   if (r.error) { toast('Allegato non disponibile: ' + msg(r.error)); return null; }
   S.urlCache.set(path, { url: r.data.signedUrl, t: Date.now() });
   return r.data.signedUrl;
+}
+
+/* ---- aggiornare l'app: il telefono puo' tenersi la copia vecchia anche per ore,
+       quindi l'app deve controllare da sola e dirti se c'e' qualcosa di nuovo ---- */
+function nascondiAggiornamento(){
+  const b = document.getElementById('upd');
+  if (b) b.hidden = true;
+}
+function mostraAggiornamento(nuova, ancheSeUguale){
+  const b = document.getElementById('upd');
+  if (!b) return;
+  const t = document.getElementById('upd-txt');
+  if (t) t.textContent = 'Stai usando ' + APP_REV + ', online c\'è ' + nuova + '. Tocca per usarla.';
+  b.hidden = false;
+  if (ancheSeUguale) toast('C\'è una versione nuova: aggiorna per usarla');
+}
+/** Chiede al server la versione di index.html e la confronta con quella in uso. */
+async function cercaAggiornamento(silenzioso){
+  if (window.navigator && navigator.onLine === false){
+    if (!silenzioso) toast('Sei senza connessione: non posso controllare');
+    return;
+  }
+  try {
+    const r = await fetch('./index.html?verifica=' + Date.now(), { cache: 'no-store' });
+    const testo = await r.text();
+    const m = /const APP_REV = '(\w+)'/.exec(testo);
+    const nuova = m ? m[1] : '';
+    if (!nuova){
+      if (!silenzioso) toast('Non riesco a capire la versione online');
+      return;
+    }
+    if (nuova !== APP_REV){ mostraAggiornamento(nuova, !silenzioso); }
+    else {
+      nascondiAggiornamento();
+      if (!silenzioso) toast('Sei già all\'ultima versione (' + APP_REV + ')');
+    }
+  } catch (e){
+    if (!silenzioso) toast('Controllo non riuscito: ' + msg(e));
+  }
+}
+/** Punto unico da cui l'app si ricarica (così si può provare anche nei test). */
+function ricaricaOra(url){
+  window.location.replace(url);
+}
+/** Ricarica l'app chiedendo prima al service worker di aggiornarsi. */
+async function aggiornaApp(){
+  try {
+    if ('serviceWorker' in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg && reg.update) await reg.update();
+    }
+  } catch (e){ /* si prosegue: tanto il file lo prende dalla rete */ }
+  await new Promise(r => setTimeout(r, 700));
+  ricaricaOra('./index.html?v=' + Date.now());
+}
+/** Rimedio radicale: svuota la cache del telefono e riparte pulito. */
+async function svuotaCache(){
+  try {
+    const chiavi = await caches.keys();
+    await Promise.all(chiavi.map(k => caches.delete(k)));
+  } catch (e){}
+  try {
+    if ('serviceWorker' in navigator){
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+  } catch (e){}
+  toast('Cache svuotata, ricarico…');
+  setTimeout(() => { ricaricaOra('./index.html?v=' + Date.now()); }, 700);
 }
 
 /* ---- aprire un allegato: a schermo intero, senza uscire dall'app ---- */
@@ -923,7 +1006,11 @@ function viewProfilo(el){
       '<button class="btn" data-action="config" style="margin-bottom:10px">⚙️ Impostazioni e configurazione</button>' +
       '<div class="hint">Gli allegati (scontrini, fatture) sono in uno spazio privato: nessun link pubblico, i link temporanei scadono dopo 10 minuti.</div>' +
       '<div class="hint" id="app-ver" style="margin-top:10px">Versione dell\'app: <b>' + APP_REV + '</b> · ' + esc(APP_DATA) +
-        '<br>Se l\'app ti sembra vecchia: chiudila del tutto dalla schermata Home e riaprila.</div>' +
+        '<br>Se ti sembra vecchia, usa i due bottoni qui sotto.</div>' +
+      '<button class="btn" data-action="cerca-update" style="margin-top:10px">🔍 Controlla se c\'è una versione nuova</button>' +
+      '<button class="btn" data-action="svuota-cache" style="margin-top:8px">🧹 Svuota la cache e ricarica (rimedio)</button>' +
+      '<div class="hint" style="margin:0">Se il controllo dice che sei all\'ultima versione ma le schermate sono vecchie, ' +
+        'il rimedio è svuotare la cache: il telefono tiene una copia dei file anche quando sei online.</div>' +
     '</div>' +
     '<div class="card"><h2>I tuoi dati</h2>' +
       '<button class="btn" data-action="export">⬇️ Esporta tutto in CSV (Excel)</button>' +
@@ -1371,6 +1458,9 @@ document.addEventListener('click', async (ev) => {
     if (t.getAttribute('data-kind') === 'new'){ await deleteNewFile(t.closest('.thumb').getAttribute('data-path')); }
     else { await removeCurrentAtt(Number(t.getAttribute('data-i'))); }
   }
+  else if (a === 'aggiorna'){ await aggiornaApp(); }
+  else if (a === 'cerca-update'){ await cercaAggiornamento(false); }
+  else if (a === 'svuota-cache'){ await svuotaCache(); }
   else if (a === 'close-viewer'){ closeViewer(); }
   else if (a === 'open-url'){
     const u = t.getAttribute('data-url') || '';
@@ -1613,8 +1703,18 @@ document.getElementById('li-cfg-hint')?.addEventListener('click', () => sheetCon
 document.getElementById('li-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
 document.getElementById('li-email').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('li-pass').focus(); });
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  // updateViaCache 'none': iPhone a volte tiene in cache anche lo script del
+  // service worker, e senza questo non lo riconsidera mai
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(() => {
+    const r = navigator.serviceWorker.getRegistration();
+    if (r && r.then) r.then(x => { if (x && x.update) x.update().catch(() => {}); });
+  }).catch(() => {});
 }
+// app aperta e app chiusa da un pezzo: prima cosa, controlla se online c'e' una novita'
+setTimeout(() => { if (S.user) cercaAggiornamento(true); }, 1500);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && S.user) cercaAggiornamento(true);
+});
 window.addEventListener('online', () => { if (S.user){ invalidate(); reload().catch(() => {}); } });
 boot();
 </script>
