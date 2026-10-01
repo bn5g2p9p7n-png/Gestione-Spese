@@ -66,6 +66,17 @@
   .balance .lbl{font-size:12px; opacity:.85; text-transform:uppercase; letter-spacing:.6px; font-weight:600}
   .balance .val{font-size:36px; font-weight:800; letter-spacing:-1px; margin-top:6px; font-variant-numeric:tabular-nums}
   .balance .row{display:flex; justify-content:space-between; margin-top:12px; font-size:13px; opacity:.95}
+  /* il saldo di tutto il conto: la cifra di riferimento, in evidenza */
+  .balance.totale{background:linear-gradient(150deg,#16233c,#25355a 60%,#2f4270); box-shadow:0 8px 22px rgba(22,35,60,.24)}
+  .balance.totale .lbl{opacity:.82}
+  .balance.totale .val{font-size:38px}
+  /* il saldo del mese scelto: sotto, piu' leggero */
+  .balance.mese{background:#fff; color:#16233c; box-shadow:var(--shadow); border:1px solid var(--line)}
+  .balance.mese .lbl{color:var(--ink2); opacity:1}
+  .balance.mese .val{font-size:30px}
+  .balance.mese .row{color:var(--ink2); opacity:1; font-size:12.5px; margin-top:8px}
+  .balance.mese .val.pos{color:#12a06b}
+  .balance.mese .val.neg{color:var(--red)}
 
   .row-item{display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:.5px solid var(--line)}
   .row-item:last-child{border-bottom:none}
@@ -150,10 +161,35 @@
   .grab{width:38px;height:5px;border-radius:3px;background:#d8d8dd;margin:8px auto 0}
 
   /* ---- attachments ---- */
+  /* ---- visualizzatore allegati a tutto schermo ---- */
+  .viewer{position:fixed; inset:0; z-index:130; background:rgba(8,10,14,.96); display:flex; flex-direction:column}
+  .viewer[hidden]{display:none}
+  .viewer-bar{display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 12px 10px;
+    color:#fff; font-size:13px}
+  .viewer-bar .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.9}
+  .viewer-bar button{border:0; background:rgba(255,255,255,.14); color:#fff; font-family:inherit; font-size:13px;
+    padding:7px 11px; border-radius:9px}
+  .viewer-bar button.ghost{background:transparent; font-size:19px; padding:4px 9px}
+  .viewer-body{flex:1; display:grid; place-items:center; padding:0 8px 8px; min-height:0}
+  .viewer-body img{max-width:100%; max-height:100%; object-fit:contain; border-radius:6px}
+  .viewer-pdf{color:#fff; text-align:center; max-width:420px; padding:0 18px}
+  .viewer-pdf .big-ic{font-size:56px}
+  .viewer-pdf .row-btns{display:flex; gap:10px; justify-content:center; margin-top:16px; flex-wrap:wrap}
+  .viewer-pdf .row-btns button{border:0; border-radius:11px; padding:12px 16px; font:inherit; font-weight:600;
+    background:#fff; color:#111}
+  .viewer-pdf .row-btns button.sec{background:rgba(255,255,255,.16); color:#fff}
+  .viewer-foot{color:rgba(255,255,255,.6); font-size:11.5px; text-align:center; padding:0 14px calc(10px + env(safe-area-inset-bottom))}
+
   .thumbs{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
   .thumb{position:relative; width:74px; height:74px; border-radius:10px; overflow:hidden; background:#eee; border:.5px solid var(--line)}
   .thumb img{width:100%; height:100%; object-fit:cover; display:block}
   .thumb .pdf{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;background:#f6f6f8}
+  .thumb{cursor:zoom-in}
+  .thumb .cap{position:absolute; left:0; right:0; bottom:0; padding:10px 4px 3px; font-size:8.5px; line-height:1.1;
+    color:#fff; background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.62));
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center}
+  .thumb .zoom{position:absolute; left:3px; top:3px; width:19px; height:19px; border-radius:6px; font-size:11px;
+    display:grid; place-items:center; background:rgba(0,0,0,.5); color:#fff; line-height:1}
   .thumb .x{position:absolute; top:2px; right:2px; width:21px; height:21px; border-radius:50%; background:rgba(0,0,0,.55); color:#fff;
     border:none; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0}
   .clip{font-size:12px; color:var(--ink2); font-weight:600}
@@ -290,7 +326,7 @@
    Cambialo (r3 -> r4, r5...) ogni volta che modifichi questo file: serve a dire al
    telefono "butta via la copia invecchiata e prendi questa". Lo fa per te lo script
    app/sincronizza-cache.mjs, che chiama anche i test. */
-const APP_REV = 'r6';
+const APP_REV = 'r8';
 const APP_DATA = '30 settembre 2026';
 
 const FILE_CONFIG = {
@@ -536,13 +572,46 @@ function availableMonths(){
   set.add(monthKey(todayISO()));
   return Array.from(set).sort().reverse();
 }
+/* Il link firmato vale 10 minuti: se e' piu' vecchio di 9, se ne chiede uno nuovo,
+   altrimenti l'allegato si aprirebbe "scaduto" senza spiegazione. */
+const FIRMA_MS = 9 * 60 * 1000;
 async function signedUrl(path){
-  if (S.urlCache.has(path)) return S.urlCache.get(path);
+  const inCache = S.urlCache.get(path);
+  if (inCache && (Date.now() - inCache.t) < FIRMA_MS) return inCache.url;
   const sb = client();
   const r = await sb.storage.from('scontrini').createSignedUrl(path, 600);
   if (r.error) { toast('Allegato non disponibile: ' + msg(r.error)); return null; }
-  S.urlCache.set(path, r.data.signedUrl);
+  S.urlCache.set(path, { url: r.data.signedUrl, t: Date.now() });
   return r.data.signedUrl;
+}
+
+/* ---- aprire un allegato: a schermo intero, senza uscire dall'app ---- */
+function closeViewer(){
+  const v = document.getElementById('viewer');
+  if (v) v.remove();
+}
+async function apriAllegato(path, nome){
+  const url = await signedUrl(path);
+  if (!url) return;
+  const isImg = isImage(nome || path);
+  const scheda = isImg
+    ? '<img src="' + esc(url) + '" alt="' + esc(nome || 'allegato') + '">'
+    : '<div class="viewer-pdf"><div class="big-ic">' + (String(nome || '').endsWith('.pdf') ? '📄' : '📎') + '</div>' +
+      '<div style="font-weight:700;font-size:17px">' + esc(nome || 'Documento') + '</div>' +
+      '<div style="opacity:.7;font-size:13px;margin-top:6px">I documenti (PDF) si aprono con il visualizzatore di iPhone.</div>' +
+      '<div class="row-btns"><button data-action="open-url" data-url="' + esc(url) + '">📂 Apri il documento</button>' +
+      '<button class="sec" data-action="copy-url" data-url="' + esc(url) + '">📋 Copia il link</button></div></div>';
+  const v = document.createElement('div');
+  v.className = 'viewer';
+  v.id = 'viewer';
+  v.innerHTML =
+    '<div class="viewer-bar"><button class="ghost" data-action="close-viewer" aria-label="chiudi">×</button>' +
+      '<div class="nm">' + esc(nome || 'allegato') + '</div>' +
+      '<button data-action="copy-url" data-url="' + esc(url) + '">Copia link</button></div>' +
+    '<div class="viewer-body">' + scheda + '</div>' +
+    '<div class="viewer-foot">Link privato e temporaneo: scade fra 10 minuti. Nessuno può indovinarlo.</div>';
+  document.body.appendChild(v);
+  v.addEventListener('click', (e) => { if (e.target === v || e.target.classList.contains('viewer-body')) closeViewer(); });
 }
 
 /* ============================================================
@@ -619,15 +688,26 @@ function viewHome(el){
   // la spesa singola piu' grossa
   const spesaTop = movMese.filter(m => m.tipo === 'uscita').sort((a,b) => b.importo - a.importo)[0];
 
+  const primo = S.movimenti.reduce(function(a,b){ return !a || b.data < a.data ? b : a; }, null);
+  const ultimo = S.movimenti.reduce(function(a,b){ return !a || b.data > a.data ? b : a; }, null);
+
   el.innerHTML =
+    '<div class="balance totale">' +
+      '<div class="lbl">Saldo totale del conto</div>' +
+      '<div class="val">' + fmtMoneySigned(all.saldo) + '</div>' +
+      '<div class="row"><span>📥 Entrate ' + fmtMoney(all.entrata) + '</span>' +
+        '<span>📤 Uscite ' + fmtMoney(all.uscita) + '</span></div>' +
+      '<div class="row" style="opacity:.72;font-size:11.5px">' +
+        '<span>' + S.movimenti.length + ' movimenti in tutto</span>' +
+        '<span>' + (primo ? 'dal ' + esc(dayLabel(primo.data)) + ' al ' + esc(dayLabel(ultimo.data)) : 'nessun movimento') + '</span></div>' +
+    '</div>' +
     monthBarHtml(mesi, all.byMonth, mk) +
-    '<div class="balance">' +
-      '<div class="lbl">Saldo di ' + esc(monthLabel(mk)) + '</div>' +
-      '<div class="val ' + (netCur < 0 ? 'neg' : '') + '">' + fmtMoneySigned(netCur) + '</div>' +
-      '<div class="row"><span>📥 ' + fmtMoney(cur.entrata) + '</span><span>📤 ' + fmtMoney(cur.uscita) + '</span></div>' +
-      '<div class="sub" style="font-size:12px;color:var(--ink2);margin-top:6px">' +
-        (mk === monthKey(todayISO()) ? 'in corso' : 'mese chiuso') + ' · ' +
-        (netCur >= 0 ? 'hai risparmiato ' + fmtMoney(netCur) : 'in deficit di ' + fmtMoney(-netCur)) + '</div>' +
+    '<div class="balance mese">' +
+      '<div class="lbl">Saldo di ' + esc(monthLabel(mk)) + ' · ' +
+        (mk === monthKey(todayISO()) ? 'in corso' : 'mese chiuso') + '</div>' +
+      '<div class="val ' + (netCur < 0 ? 'neg' : 'pos') + '">' + fmtMoneySigned(netCur) + '</div>' +
+      '<div class="row"><span>' + (netCur >= 0 ? 'hai risparmiato' : 'in deficit di') + '</span>' +
+        '<b>' + fmtMoney(Math.abs(netCur)) + '</b></div>' +
     '</div>' +
     '<div class="kpi-grid">' +
       '<div class="kpi"><div class="lbl">Entrate del mese</div><div class="val pos">' + fmtMoney(cur.entrata) + '</div>' +
@@ -683,20 +763,8 @@ function viewHome(el){
         : '<div class="empty"><b>Nessun movimento in ' + esc(monthLabel(mk)) + '</b>' +
           '<button class="btn" data-action="add-in-month" style="margin-top:12px">+ Aggiungi a ' +
           esc(monthLabel(mk)) + '</button></div>') +
-    '</div>' +
-    '<div class="card"><h2>Il conto in tutti i mesi</h2>' +
-      '<div class="row" style="justify-content:space-between"><span class="mut">Entrate registrate</span>' +
-        '<b class="pos">+' + fmtMoney(all.entrata) + '</b></div>' +
-      '<div class="row" style="justify-content:space-between"><span class="mut">Uscite registrate</span>' +
-        '<b class="neg">−' + fmtMoney(all.uscita) + '</b></div>' +
-      '<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;margin-top:4px">' +
-        '<span>Saldo totale del conto</span><b class="big ' + (all.saldo < 0 ? 'neg' : '') + '">' +
-        fmtMoneySigned(all.saldo) + '</b></div>' +
-      (S.movimenti.length ? '<div class="hint" style="margin:0">' + S.movimenti.length + ' movimenti, dal ' +
-        esc(dayLabel(S.movimenti.reduce(function(a,b){ return !a || b.data < a.data ? b : a; }, null).data)) +
-        ' al ' + esc(dayLabel(S.movimenti.reduce(function(a,b){ return !a || b.data > a.data ? b : a; }, null).data)) +
-        '</div>' : '') +
     '</div>';
+
   // la barra dei mesi parte già sul mese scelto
   const barra = document.getElementById('monthbar');
   const chip = barra && barra.querySelector('.mchip.on');
@@ -889,7 +957,7 @@ function catButtons(tipo, selId){
     '<span>' + esc(c.emoji) + '</span>' + esc(c.nome) + '</button>').join('') + '</div>';
 }
 
-function sheetMovimento(m, dataIniziale){
+function sheetMovimento(m, dataIniziale){   // eslint-disable-line
   const isNew = !m;
   const tipo = m ? m.tipo : 'uscita';
   const data = m ? m.data : (dataIniziale || todayISO());
@@ -929,12 +997,14 @@ function sheetMovimento(m, dataIniziale){
     '<div class="sheet-card"><h2 style="margin:14px 0 0">📎 Scontrini e documenti</h2>' +
       '<div id="f-att">' + attHtml(m ? m.allegati : [], false) + '</div>' +
       '<button type="button" class="btn small" data-action="add-files" style="margin-top:10px">📷 Fotografa o allega</button>' +
-      '<div class="hint" id="att-hint">Foto o PDF fino a 15 MB. Lo spazio è privato: li vedi solo tu.</div>' +
+      '<div class="hint" id="att-hint">Foto o PDF fino a 15 MB. Lo spazio è privato: li vedi solo tu.<br>' +
+      '<b>Tocca un allegato per aprirlo</b> a tutto schermo (⤢ in alto a sinistra). La x in alto a destra lo elimina.</div>' +
     '</div>' +
     '<div class="btn-row">' +
       (isNew ? '<button type="button" class="btn" data-action="save-new">💾 Salva</button>'
              : '<button type="button" class="btn primary" data-action="save-edit">✅ Salva modifiche</button>') +
     '</div>');
+  hydrateThumbs();
 }
 
 function attHtml(paths, isNew){
@@ -943,27 +1013,30 @@ function attHtml(paths, isNew){
     const nm = String(p).split('/').pop();
     const size = S.attSizes && S.attSizes[p];
     return '<div class="thumb" data-path="' + esc(p) + '" data-kind="' + (isNew ? 'new' : 'cur') + '" data-i="' + i + '"' +
-      (size ? ' title="' + esc(nm) + ' · ' + sizeOf(size) + '"' : ' title="' + esc(nm) + '"') + '>' +
-      (isImage(nm) ? '<img data-attimg="' + esc(p) + '" alt="allegato">' : '<div class="pdf">📄</div>') +
+      ' data-nome="' + esc(nm) + '"' +
+      (size ? ' title="' + esc(nm) + ' · ' + sizeOf(size) + '"' : ' title="Apri ' + esc(nm) + '"') + '>' +
+      (isImage(nm) ? '<img data-attimg="' + esc(p) + '" alt="' + esc(nm) + '">' : '<div class="pdf">📄</div>') +
+      '<span class="zoom">⤢</span><span class="cap">' + esc(nm) + '</span>' +
       '<button type="button" class="x" data-action="del-att" data-kind="' + (isNew ? 'new' : 'cur') +
       '" data-i="' + i + '" aria-label="rimuovi">×</button></div>';
   }).join('') + '</div>';
 }
 async function hydrateThumbs(){
-  const imgs = Array.prototype.slice.call(document.querySelectorAll('img[data-attimg]'));
-  for (const img of imgs){
-    if (img.dataset.done === '1') continue;
-    img.dataset.done = '1';
-    const p = img.getAttribute('data-attimg');
-    const url = await signedUrl(p);
-    if (url){
-      img.src = url;
-      img.style.cursor = 'zoom-in';
-      img.addEventListener('click', () => { window.location.href = url; });
-    } else {
-      const box = img.closest ? img.closest('.thumb') : null;
-      if (box) box.innerHTML = '<div class="pdf">❓</div>';
+  const tiles = Array.prototype.slice.call(document.querySelectorAll('.thumb[data-path]'));
+  for (const tile of tiles){
+    if (tile.dataset.apri !== '1'){
+      tile.dataset.apri = '1';
+      tile.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-action="del-att"]')) return;   // la x rimuove, non apre
+        apriAllegato(tile.getAttribute('data-path'), tile.getAttribute('data-nome'));
+      });
     }
+    const img = tile.querySelector('img[data-attimg]');
+    if (!img || img.dataset.done === '1') continue;
+    img.dataset.done = '1';
+    const url = await signedUrl(img.getAttribute('data-attimg'));
+    if (url) img.src = url;
+    else { const box = tile.querySelector('.pdf'); if (box) box.textContent = '❓'; }
   }
 }
 
@@ -1297,6 +1370,18 @@ document.addEventListener('click', async (ev) => {
   else if (a === 'del-att'){
     if (t.getAttribute('data-kind') === 'new'){ await deleteNewFile(t.closest('.thumb').getAttribute('data-path')); }
     else { await removeCurrentAtt(Number(t.getAttribute('data-i'))); }
+  }
+  else if (a === 'close-viewer'){ closeViewer(); }
+  else if (a === 'open-url'){
+    const u = t.getAttribute('data-url') || '';
+    if (!u) return;
+    const w = window.open(u, '_blank');
+    if (!w) toast('Il browser ha bloccato la finestra: tocca “Copia il link” e incollalo in Safari');
+  }
+  else if (a === 'copy-url'){
+    const u = t.getAttribute('data-url') || '';
+    try { await navigator.clipboard.writeText(u); toast('Link copiato 📋 (scade fra 10 minuti)'); }
+    catch (e) { toast('Copia non permessa: tieni premuto l\'immagine per condividere'); }
   }
   else if (a === 'pick-cat'){
     S.pickCat = Number(id);
