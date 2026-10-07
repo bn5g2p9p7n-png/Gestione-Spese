@@ -113,7 +113,7 @@
   .tabbar{position:fixed; left:0; right:0; bottom:0; z-index:30;
     background:rgba(255,255,255,.92); backdrop-filter:saturate(180%) blur(18px); -webkit-backdrop-filter:saturate(180%) blur(18px);
     border-top:.5px solid var(--line); padding-bottom:env(safe-area-inset-bottom)}
-  .tabbar-in{max-width:640px; margin:0 auto; display:grid; grid-template-columns:repeat(4,1fr); align-items:end}
+  .tabbar-in{max-width:640px; margin:0 auto; display:grid; grid-template-columns:repeat(5,1fr); align-items:end}
   .tab{background:none; border:none; font:inherit; color:var(--ink2); padding:8px 2px 9px; display:flex; flex-direction:column;
     align-items:center; gap:2px; font-size:10.5px; font-weight:600; cursor:pointer}
   .tab .ic{font-size:20px; line-height:1}
@@ -162,6 +162,16 @@
 
   /* ---- attachments ---- */
   /* ---- avviso "c'è una versione nuova" ---- */
+  .mini-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+  .mini-row .btn{flex:1 1 44%; font-size:14px; padding:11px 10px}
+  .serie{border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-top:12px; background:#fff}
+  .serie .t{display:flex; align-items:center; gap:10px}
+  .serie .t .emoji{font-size:22px}
+  .serie .t b{font-size:16px; font-weight:700; letter-spacing:-.2px}
+  .serie .t .amt{margin-left:auto; font-weight:700; font-variant-numeric:tabular-nums}
+  .serie .meta{font-size:12.5px; color:var(--ink2); margin-top:6px}
+  .serie .fila{font-size:12.5px; color:var(--ink2); margin-top:8px; background:#f6f6f8; border-radius:10px; padding:8px 10px}
+
   .rep-anteprima{margin-top:8px; background:#f6f6f8; border-radius:11px; padding:9px 11px; font-size:12.5px;
     color:var(--ink2); line-height:1.45}
   .rep-anteprima b{color:#16233c}
@@ -315,6 +325,7 @@
     <div class="tabbar-in">
       <button class="tab on" data-view="home"><span class="ic">🏠</span>Home</button>
       <button class="tab" data-view="movimenti"><span class="ic">🧾</span>Movimenti</button>
+      <button class="tab" data-view="ricorrenti"><span class="ic">🔁</span>Ricorrenti</button>
       <button class="tab" data-view="categorie"><span class="ic">🗂️</span>Categorie</button>
       <button class="tab" data-view="profilo"><span class="ic">👤</span>Profilo</button>
     </div>
@@ -345,7 +356,7 @@
    Cambialo (r3 -> r4, r5...) ogni volta che modifichi questo file: serve a dire al
    telefono "butta via la copia invecchiata e prendi questa". Lo fa per te lo script
    app/sincronizza-cache.mjs, che chiama anche i test. */
-const APP_REV = 'r10';
+const APP_REV = 'r11';
 const APP_DATA = '30 settembre 2026';
 
 const FILE_CONFIG = {
@@ -541,6 +552,56 @@ function nascondiAnteprimaRipetizione(){
   const q = document.getElementById('rep-quanti');
   if (an) an.innerHTML = '';
   if (q) q.textContent = '';
+}
+/** Raggruppa i movimenti che si ripetono ogni mese (affitto, stipendio, bolletta...).
+ *  Regole prudenti: stessa categoria + stessa descrizione, un movimento per mese,
+ *  stesso giorno del mese (±3 giorni), almeno 3 volte. Cosi non finisce nel
+ *  "ricorrenti" niente spesa settimanale o caffè. */
+function serieRicorrenti(movimenti, cats){
+  const gruppi = {};
+  for (const m of movimenti){
+    const cat = cats.find(c => c.id === Number(m.categoria_id));
+    const desc = String(m.descrizione || '').trim().toLowerCase();
+    if (!cat) continue;                       // senza categoria non si sa che cos'è
+    if (!desc) continue;                      // senza descrizione è troppo generico
+    const chiave = cat.id + '|' + desc;
+    (gruppi[chiave] || (gruppi[chiave] = [])).push(m);
+  }
+  const serie = [];
+  for (const chiave of Object.keys(gruppi)){
+    const righe = gruppi[chiave].slice().sort((a,b) => a.data < b.data ? -1 : a.data > b.data ? 1 : 0);
+    if (righe.length < 3) continue;
+    const cat = cats.find(c => c.id === Number(righe[0].categoria_id));
+    const giorni = righe.map(m => parseInt(String(m.data).slice(8,10), 10));
+    const primoGiorno = giorni[0];
+    const entro = righe.every((m,i) => {
+      if (i === 0) return true;
+      const pm = String(righe[i-1].mese || monthKey(righe[i-1].data));
+      const cm = String(m.mese || monthKey(m.data));
+      const gap = mesiDiDifferenza(pm, cm);
+      return gap === 1 && Math.abs(parseInt(String(m.data).slice(8,10), 10) - primoGiorno) <= 3;
+    });
+    if (!entro) continue;
+    const ultimo = righe[righe.length - 1];
+    const primo = righe[0];
+    serie.push({
+      chiave, categoria: cat, descrizione: primo.descrizione || cat.nome,
+      tipo: ultimo.tipo, importo: Number(ultimo.importo), righe,
+      primo, ultimo, n: righe.length,
+      dal: primo.data, al: ultimo.data,
+      importiDiversi: new Set(righe.map(m => Number(m.importo))).size > 1,
+      prossimo: prossimaData(ultimo.data)
+    });
+  }
+  return serie.sort((a,b) => (a.ultimo.data < b.ultimo.data ? 1 : -1));
+}
+function mesiDiDifferenza(a, b){
+  const pa = String(a).split('-'), pb = String(b).split('-');
+  return (parseInt(pb[0],10) - parseInt(pa[0],10)) * 12 + (parseInt(pb[1],10) - parseInt(pa[1],10));
+}
+function prossimaData(ultimaISO){
+  const date = mesiInSuccessione(ultimaISO, 2);
+  return date[1];
 }
 function prevMonth(k){
   const p = k.split('-'); const d = new Date(+p[0], +p[1]-2, 1);
@@ -775,13 +836,19 @@ async function apriAllegato(path, nome){
    ============================================================ */
 function render(){
   document.getElementById('view-title').textContent =
-    ({home:'Home', movimenti:'Movimenti', categorie:'Categorie', profilo:'Profilo'})[S.view];
+    ({home:'Home', movimenti:'Movimenti', ricorrenti:'Ricorrenti', categorie:'Categorie', profilo:'Profilo'})[S.view];
   document.getElementById('view-sub').textContent =
     S.view === 'home' ? monthLabel(homeMonth()) : '';
   const c = document.getElementById('content');
   if (!S.caricato){ c.innerHTML = '<div class="spinner"></div>'; return; }
   if (S.view === 'home') return viewHome(c);
   if (S.view === 'movimenti') return viewMovimenti(c);
+  if (S.view === 'ricorrenti'){
+    document.getElementById('btn-add').hidden = true;
+    viewRicorrenti(c);
+    return;
+  }
+  document.getElementById('btn-add').hidden = false;
   if (S.view === 'categorie') return viewCategorie(c);
   if (S.view === 'profilo') return viewProfilo(c);
 }
@@ -1030,6 +1097,193 @@ function viewMovimenti(el){
       if (v2){ v2.focus(); try { v2.setSelectionRange(pos,pos); } catch(_e){} }
     }, 240);
   });
+}
+
+/* ============================================================
+   6b. RENDER — RICORRENTI (le spese che si ripetono ogni mese)
+   ============================================================ */
+function viewRicorrenti(el){
+  const serie = serieRicorrenti(S.movimenti, S.categorie);
+  const prossimi = serie.filter(x => x.prossimo <= monthKey(todayISO()) + '-31');
+  el.innerHTML =
+    '<div class="card"><h2>Cosa si ripete ogni mese</h2>' +
+      '<div class="hint" style="margin:0">Qui sotto l\'app riconosce da sola le spese e le entrate che ' +
+        'hai registrato <b>ogni mese</b> (affitto, stipendio, bollette…): puoi cambiarne l\'importo, ' +
+        'prolungarle o accorciarle <b>tutte insieme</b>, senza aprirle una per una.</div></div>' +
+    (serie.length ? serie.map((x,i) =>
+      '<div class="serie">' +
+        '<div class="t"><span class="emoji">' + esc(x.categoria.emoji) + '</span>' +
+          '<b>' + esc(x.descrizione) + '</b>' +
+          '<span class="amt ' + (x.tipo === 'entrata' ? 'pos' : 'neg') + '">' +
+            (x.tipo === 'entrata' ? '+' : '−') + fmtMoney(x.importo) + '</span></div>' +
+        '<div class="meta">' + esc(x.categoria.nome) + ' · ' + x.n + ' ' + (x.n === 1 ? 'movimento' : 'movimenti') +
+          ' · dal ' + esc(monthLabel(monthKey(x.dal))) + ' al ' + esc(monthLabel(monthKey(x.al))) +
+          (x.importiDiversi ? ' · <b>l\'importo è cambiato</b>' : '') + '</div>' +
+        '<div class="fila">Prossima: <b>' + esc(dayLabel(x.prossimo)) + '</b> — il giorno ' +
+          parseInt(String(x.ultimo.data).slice(8,10),10) + ' di ogni mese</div>' +
+        '<div class="mini-row">' +
+          '<button class="btn" data-action="rec-aperta" data-i="' + i + '">✏️ Cambia importo</button>' +
+          '<button class="btn" data-action="rec-prolunga" data-i="' + i + '">➕ Prolunga</button>' +
+          '<button class="btn" data-action="rec-accorcia" data-i="' + i + '">✂️ Accorcia</button>' +
+          '<button class="btn" data-action="rec-dettagli" data-i="' + i + '">📋 Vedi tutto</button>' +
+        '</div>' +
+      '</div>').join('')
+    : '<div class="card"><div class="empty"><b>Nessuna spesa che si ripete</b>' +
+      'Quando registri la stessa spesa per almeno 3 mesi di fila (per esempio l\'affitto), ' +
+      'qui la trovi e puoi modificarla tutta con un tocco.</div></div>') +
+    '<div class="card"><h2>Come si crea una ricorrenza nuova</h2>' +
+      '<div class="hint" style="margin:0">Nel foglio di un movimento attiva <b>Ripeti nei mesi</b> ' +
+      'e scrivi per quanti mesi (per esempio 12 per un anno di affitto): l\'app crea una riga per ogni mese. ' +
+      'Da quel momento la trovi in questa sezione e puoi allungarla o accorciarla quando vuoi.</div></div>';
+}
+
+/** Etichetta di una serie, usata nelle finestrelle. */
+function serieLabel(x){
+  return x.categoria.emoji + ' ' + x.descrizione;
+}
+function sheetRicorrente(tipo, i){
+  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+  if (!x){ toast('Non trovata'); return; }
+  const isEntrata = x.tipo === 'entrata';
+  let corpo = '';
+  if (tipo === 'aperta'){
+    corpo = '<div class="sheet-card">' +
+      '<label class="f" for="rec-imp">Nuovo importo mensile (' + fmtMoney(x.importo) + ' ora)</label>' +
+      '<input id="rec-imp" type="text" inputmode="decimal" value="' +
+        String(x.importo).replace('.', ',') + '">' +
+      '<div class="hint">Scegli a chi applicare la correzione:</div>' +
+      '<div class="seg" id="seg-quale" style="margin-top:8px">' +
+        '<button type="button" data-v="futuri" class="on">Solo i futuri</button>' +
+        '<button type="button" data-v="tutti">Anche quelli già passati</button>' +
+      '</div>' +
+      '<div class="hint" style="margin-top:8px">«Solo i futuri» lascia intatti i mesi già registrati: ' +
+        'serve quando l\'affitto cambia da domani. «Anche quelli passati» corregge tutto, utile se ' +
+        'l\'hai registrato sbagliato in una botta sola.</div></div>' +
+      '<div class="btn-row"><button type="button" class="btn primary" data-action="rec-salva-imp" data-i="' + i + '">✅ Salva</button></div>';
+  } else if (tipo === 'prolunga'){
+    corpo = '<div class="sheet-card">' +
+      '<label class="f" for="rec-mes">Quanti mesi aggiungere</label>' +
+      '<input id="rec-mes" type="text" inputmode="numeric" value="12">' +
+      '<div class="hint" id="rec-antep">' + anteprimaProlunga(x, 12) + '</div></div>' +
+      '<div class="btn-row"><button type="button" class="btn primary" data-action="rec-salva-prolunga" data-i="' + i + '">✅ Aggiungi</button></div>';
+  } else if (tipo === 'accorcia'){
+    const opzioni = [];
+    for (let k = Math.max(1, x.n - 1); k >= 1; k--){
+      const fino = x.righe[k - 1].data;
+      opzioni.push('<button type="button" class="btn" data-action="rec-tieni" data-i="' + i + '" data-fino="' + fino + '" style="margin:4px">' +
+        'Tieni ' + k + ' ' + (k === 1 ? 'mese' : 'mesi') + ' (fino a ' + esc(monthLabel(monthKey(fino))) + ')</button>');
+    }
+    corpo = '<div class="sheet-card"><div class="hint" style="margin:0 0 8px">' +
+      'Adesso ci sono <b>' + x.n + '</b> ' + (x.n === 1 ? 'movimento' : 'movimenti') + ', ' +
+      'da ' + esc(monthLabel(monthKey(x.dal))) + ' a ' + esc(monthLabel(monthKey(x.al))) + '. ' +
+      'Scegli quanti tenere: i successivi vengono <b>cancellati</b> (anche eventuali allegati).</div>' +
+      opzioni.join('') +
+      '<div class="mini-row"><button type="button" class="btn danger" data-action="rec-ferma" data-i="' + i + '">⏹️ Cancella tutta la serie</button></div>' +
+      '</div>';
+  } else if (tipo === 'dettagli'){
+    corpo = '<div class="sheet-card">' +
+      '<div class="hint" style="margin:0 0 8px">' + x.n + ' movimenti, dal ' + esc(dayLabel(x.dal)) +
+        ' al ' + esc(dayLabel(x.al)) + '</div>' +
+      x.righe.slice().reverse().map(m =>
+        '<div class="row-item"><div class="emoji">' + esc(x.categoria.emoji) + '</div><div class="row-main">' +
+        '<div class="row-t">' + esc(dayLabel(m.data)) + '</div>' +
+        '<div class="row-s">' + (m.fornitore ? esc(m.fornitore) : '') + '</div></div>' +
+        '<div class="row-a"><span class="' + (m.tipo === 'entrata' ? 'pos' : 'neg') + '">' +
+        (m.tipo === 'entrata' ? '+' : '−') + fmtMoney(m.importo) + '</span></div></div>').join('') +
+      '</div>';
+  }
+  openSheet('<form class="sheet-head"><h3>' + esc(serieLabel(x)) + '</h3>' +
+    '<button type="button" class="btn small" data-action="close-sheet">Chiudi</button></form>' + corpo);
+  if (tipo === 'prolunga'){
+    const inp = document.getElementById('rec-mes');
+    if (inp) inp.addEventListener('input', () => {
+      const a = document.getElementById('rec-antep');
+      const v = Math.max(1, Math.min(60, parseInt(inp.value || '1', 10) || 1));
+      if (a) a.textContent = anteprimaProlunga(x, v);
+    });
+  }
+}
+function anteprimaProlunga(x, n){
+  const date = mesiInSuccessione(x.ultimo.data, Math.max(1, n));
+  const fino = date[date.length - 1];
+  return 'Verranno create ' + Math.max(1, n) + ' ' + (n === 1 ? 'spesa' : 'spese') +
+    ' (una al mese), fino a ' + monthLabel(monthKey(fino)) + '. Totale della serie: ' +
+    (x.n + Math.max(1, n)) + ' spese.';
+}
+/* ---- azioni sulle serie ---- */
+async function recCambiaImporto(i){
+  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+  if (!x) return;
+  const nuovo = parseAmount((document.getElementById('rec-imp') || {}).value);
+  if (!(nuovo > 0)){ toast('Scrivi un importo valido'); return; }
+  if (nuovo > 99999999){ toast('Importo troppo grande'); return; }
+  const soloFuturi = !document.querySelector('#seg-quale button.on[data-v="tutti"]');
+  const oggi = todayISO();
+  const daCambiare = x.righe.filter(m => soloFuturi ? m.data > oggi : true);
+  if (!daCambiare.length){
+    toast(soloFuturi ? 'Non ci sono ancora movimenti futuri: usa "Prolunga"' : 'Niente da cambiare');
+    closeSheet(); return;
+  }
+  const sb = client();
+  let okN = 0;
+  for (const m of daCambiare){
+    const r = await sb.from('movimenti_conto').update({ importo: nuovo }).eq('id', m.id);
+    if (!r.error) okN++;
+  }
+  S.urlCache.clear();
+  closeSheet(); invalidate();
+  try { await reload(); } catch (e){ render(); }
+  toast(okN + ' ' + (okN === 1 ? 'aggiornato' : 'aggiornati') + ' a ' + fmtMoney(nuovo) + ' ✓');
+}
+async function recProlunga(i){
+  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+  if (!x) return;
+  const n = Math.max(1, Math.min(60, parseInt((document.getElementById('rec-mes') || {}).value || '1', 10) || 1));
+  const sb = client();
+  const date = mesiInSuccessione(x.ultimo.data, n);
+  let okN = 0;
+  for (const iso of date){
+    const row = {
+      tipo: x.tipo, data: iso, importo: x.importo, categoria_id: x.categoria.id,
+      descrizione: x.descrizione, fornitore: null, note: null, allegati: []
+    };
+    const r = await sb.from('movimenti_conto').insert(row);
+    if (!r.error) okN++;
+  }
+  closeSheet(); invalidate();
+  try { await reload(); } catch (e){ render(); }
+  toast(okN + ' ' + (okN === 1 ? 'spesa aggiunta' : 'spese aggiunte') + ' fino a ' +
+        monthLabel(monthKey(date[date.length-1])) + ' ✓');
+}
+async function recAccorcia(i, finoISO){
+  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+  if (!x) return;
+  const sb = client();
+  const daTogliere = x.righe.filter(m => m.data > finoISO);
+  if (!daTogliere.length){ closeSheet(); toast('Non c\'è niente da togliere'); return; }
+  for (const m of daTogliere){
+    if ((m.allegati || []).length) await sb.storage.from('scontrini').remove(m.allegati);
+    const r = await sb.from('movimenti_conto').delete().eq('id', m.id);
+    if (r.error){ toast('Cancellazione non riuscita: ' + msg(r.error)); return; }
+  }
+  closeSheet(); invalidate();
+  try { await reload(); } catch (e){ render(); }
+  toast(daTogliere.length + ' ' + (daTogliere.length === 1 ? 'spesa tolta' : 'spese tolte') + ' ✓');
+}
+async function recFerma(i){
+  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+  if (!x) return;
+  if (!window.confirm('Cancellare tutte le ' + x.n + ' spese di "' + x.descrizione + '"?\n\n' +
+      'Non si torna indietro. Se vuoi tenerne qualcuna, usa prima "Accorcia".')) return;
+  const sb = client();
+  for (const m of x.righe){
+    if ((m.allegati || []).length) await sb.storage.from('scontrini').remove(m.allegati);
+    const r = await sb.from('movimenti_conto').delete().eq('id', m.id);
+    if (r.error){ toast('Cancellazione non riuscita: ' + msg(r.error)); return; }
+  }
+  closeSheet(); invalidate();
+  try { await reload(); } catch (e){ render(); }
+  toast('Serie eliminata ✓');
 }
 
 /* ============================================================
@@ -1609,6 +1863,14 @@ document.addEventListener('click', async (ev) => {
   else if (a === 'aggiorna'){ await aggiornaApp(); }
   else if (a === 'cerca-update'){ await cercaAggiornamento(false); }
   else if (a === 'svuota-cache'){ await svuotaCache(); }
+  else if (a === 'rec-aperta'){ sheetRicorrente('aperta', Number(v)); }
+  else if (a === 'rec-prolunga'){ sheetRicorrente('prolunga', Number(v)); }
+  else if (a === 'rec-accorcia'){ sheetRicorrente('accorcia', Number(v)); }
+  else if (a === 'rec-dettagli'){ sheetRicorrente('dettagli', Number(v)); }
+  else if (a === 'rec-salva-imp'){ await recCambiaImporto(Number(v)); }
+  else if (a === 'rec-salva-prolunga'){ await recProlunga(Number(v)); }
+  else if (a === 'rec-tieni'){ await recAccorcia(Number(v), t.getAttribute('data-fino')); }
+  else if (a === 'rec-ferma'){ await recFerma(Number(v)); }
   else if (a === 'cerca-dup'){ sheetDuplicati(); }
   else if (a === 'ripulisci-dup'){ await ripulisciDuplicati(); }
   else if (a === 'close-viewer'){ closeViewer(); }
@@ -1681,7 +1943,7 @@ document.addEventListener('click', async (ev) => {
 });
 
 document.addEventListener('click', (ev) => {
-  const seg = ev.target.closest ? ev.target.closest('#seg-tipo button, #seg-cat button') : null;
+  const seg = ev.target.closest ? ev.target.closest('#seg-tipo button, #seg-cat button, #seg-quale button') : null;
   if (!seg) return;
   seg.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('on'));
   seg.classList.add('on');
