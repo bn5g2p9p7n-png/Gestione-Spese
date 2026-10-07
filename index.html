@@ -356,7 +356,7 @@
    Cambialo (r3 -> r4, r5...) ogni volta che modifichi questo file: serve a dire al
    telefono "butta via la copia invecchiata e prendi questa". Lo fa per te lo script
    app/sincronizza-cache.mjs, che chiama anche i test. */
-const APP_REV = 'r11';
+const APP_REV = 'r12';
 const APP_DATA = '30 settembre 2026';
 
 const FILE_CONFIG = {
@@ -553,18 +553,44 @@ function nascondiAnteprimaRipetizione(){
   if (an) an.innerHTML = '';
   if (q) q.textContent = '';
 }
+/** Quanti giorni può cambiare il giorno del mese fra una rata e l'altra
+ *  (serve per tollerare il 31 che a febbraio diventa 28/29) */
+const TOLLERANZA_GIORNO = 4;
+/** Il mese dentro parentesi che l'app mette da sola quando crei le rate:
+ *  "Affitto (ott 2026)", "Affitto (10/2026)", "Affitto ottobre 2026"… */
+const MESI_RE = '(?:gen(?:naio)?|feb(?:braio|ra)?|mar(?:zo)?|apr(?:ile)?|mag(?:gio)?|giu(?:gno)?|lug(?:lio)?|ago(?:sto)?|set(?:tembre)?|ott(?:obre)?|nov(?:embre)?|dic(?:embre)?|0?[1-9]|1[0-2])';
+const SUFFISSO_RE = new RegExp(
+  '\\s*[\\(\\[]\\s*(?:' + MESI_RE + ')\\s*[\\/.\\-]?\\s*\\d{2,4}\\s*[\\)\\]]\\s*$' +
+  '|\\s*\\(\\s*\\d{4}\\s*[\\/.\\-]\\s*(?:' + MESI_RE + ')\\s*\\)\\s*$' +
+  '|\\s+(?:' + MESI_RE + ')\\s+\\d{4}\\s*$' +
+  '|\\s+\\d{4}\\s*[\\/.\\-]\\s*(?:' + MESI_RE + ')\\s*$' +
+  '|\\s+(?:' + MESI_RE + ')\\s*[\\/.\\-]\\s*\\d{4}\\s*$', 'i');
+/** Toglie il suffisso del mese e i doppi spazi: serve per capire che
+ *  "Affitto (ott 2026)" e "Affitto (nov 2026)" sono la stessa spesa. */
+function nomeRicorrente(desc){
+  let s = String(desc == null ? '' : desc).replace(/\s+/g, ' ').trim();
+  for (let i = 0; i < 3; i++){
+    const n = s.replace(SUFFISSO_RE, '').trim();
+    if (n === s) break;
+    s = n;
+  }
+  return s;
+}
 /** Raggruppa i movimenti che si ripetono ogni mese (affitto, stipendio, bolletta...).
- *  Regole prudenti: stessa categoria + stessa descrizione, un movimento per mese,
- *  stesso giorno del mese (±3 giorni), almeno 3 volte. Cosi non finisce nel
- *  "ricorrenti" niente spesa settimanale o caffè. */
+ *  Regole prudenti: stessa categoria + stessa descrizione (il mese fra parentesi
+ *  non conta), un movimento per mese, stesso giorno del mese (±4 giorni),
+ *  almeno 3 volte. Se la descrizione è vuota si usa il nome della categoria,
+ *  così funziona anche chi registra "solo importo + categoria".
+ *  Cosi non finisce nel "ricorrenti" niente spesa settimanale o caffè. */
 function serieRicorrenti(movimenti, cats){
   const gruppi = {};
   for (const m of movimenti){
     const cat = cats.find(c => c.id === Number(m.categoria_id));
-    const desc = String(m.descrizione || '').trim().toLowerCase();
     if (!cat) continue;                       // senza categoria non si sa che cos'è
-    if (!desc) continue;                      // senza descrizione è troppo generico
-    const chiave = cat.id + '|' + desc;
+    const base = nomeRicorrente(m.descrizione);
+    const etichetta = (base || String(cat.nome || '').trim()).toLowerCase();
+    if (!etichetta) continue;
+    const chiave = cat.id + '|' + etichetta;
     (gruppi[chiave] || (gruppi[chiave] = [])).push(m);
   }
   const serie = [];
@@ -579,13 +605,16 @@ function serieRicorrenti(movimenti, cats){
       const pm = String(righe[i-1].mese || monthKey(righe[i-1].data));
       const cm = String(m.mese || monthKey(m.data));
       const gap = mesiDiDifferenza(pm, cm);
-      return gap === 1 && Math.abs(parseInt(String(m.data).slice(8,10), 10) - primoGiorno) <= 3;
+      return gap === 1 && Math.abs(parseInt(String(m.data).slice(8,10), 10) - primoGiorno) <= TOLLERANZA_GIORNO;
     });
     if (!entro) continue;
     const ultimo = righe[righe.length - 1];
     const primo = righe[0];
+    const base = nomeRicorrente(primo.descrizione);
     serie.push({
-      chiave, categoria: cat, descrizione: primo.descrizione || cat.nome,
+      chiave, categoria: cat, descrizione: base || cat.nome, descBase: base,
+      haSuffisso: SUFFISSO_RE.test(String(primo.descrizione || '')) ||
+                  SUFFISSO_RE.test(String(ultimo.descrizione || '')),
       tipo: ultimo.tipo, importo: Number(ultimo.importo), righe,
       primo, ultimo, n: righe.length,
       dal: primo.data, al: ultimo.data,
@@ -594,6 +623,51 @@ function serieRicorrenti(movimenti, cats){
     });
   }
   return serie.sort((a,b) => (a.ultimo.data < b.ultimo.data ? 1 : -1));
+}
+/** Spese che sembrano una ricorrenza ma non lo sono: serve a spiegare all'utente
+ *  PERCHÉ non la vede nella sezione (con un rimedio per ognuna). */
+function quasiSerie(movimenti, cats){
+  const giuste = new Set(serieRicorrenti(movimenti, cats).map(x => x.chiave));
+  const gruppi = {};
+  for (const m of movimenti){
+    const cat = cats.find(c => c.id === Number(m.categoria_id));
+    if (!cat) continue;
+    const base = nomeRicorrente(m.descrizione);
+    const etichetta = (base || String(cat.nome || '').trim()).toLowerCase();
+    if (!etichetta) continue;
+    const chiave = cat.id + '|' + etichetta;
+    (gruppi[chiave] || (gruppi[chiave] = [])).push(m);
+  }
+  const fuori = [];
+  for (const chiave of Object.keys(gruppi)){
+    if (giuste.has(chiave)) continue;
+    const righe = gruppi[chiave].slice().sort((a,b) => a.data < b.data ? -1 : a.data > b.data ? 1 : 0);
+    if (righe.length < 2) continue;
+    const cat = cats.find(c => c.id === Number(righe[0].categoria_id));
+    let motivo = '', rimedio = '';
+    if (righe.length < 3){
+      motivo = 'ne hai registrate solo ' + righe.length + ' di 3';
+      rimedio = 'aggiungine un\'altra e comparirà qui';
+    } else {
+      const giorni = righe.map(m => parseInt(String(m.data).slice(8,10), 10));
+      let mesiOk = true, giorniOk = true;
+      for (let i = 1; i < righe.length; i++){
+        if (mesiDiDifferenza(monthKey(righe[i-1].data), monthKey(righe[i].data)) !== 1) mesiOk = false;
+        if (Math.abs(giorni[i] - giorni[0]) > TOLLERANZA_GIORNO) giorniOk = false;
+      }
+      if (!mesiOk){
+        motivo = 'non vanno una al mese di fila (c\'è un buco)';
+        rimedio = 'registra le rate del mese saltato';
+      } else if (!giorniOk){
+        motivo = 'sono registrate in giorni troppo diversi';
+        rimedio = 'tutte le rate dovrebbero cadere nella stessa data (o quasi)';
+      }
+    }
+    if (!motivo) continue;
+    fuori.push({ chiave, emoji: cat.emoji, categoria: cat.nome,
+      nome: nomeRicorrente(righe[0].descrizione) || cat.nome, n: righe.length, motivo, rimedio });
+  }
+  return fuori.sort((a,b) => b.n - a.n).slice(0, 5);
 }
 function mesiDiDifferenza(a, b){
   const pa = String(a).split('-'), pb = String(b).split('-');
@@ -1104,37 +1178,48 @@ function viewMovimenti(el){
    ============================================================ */
 function viewRicorrenti(el){
   const serie = serieRicorrenti(S.movimenti, S.categorie);
-  const prossimi = serie.filter(x => x.prossimo <= monthKey(todayISO()) + '-31');
+  const quasi = quasiSerie(S.movimenti, S.categorie);
   el.innerHTML =
     '<div class="card"><h2>Cosa si ripete ogni mese</h2>' +
       '<div class="hint" style="margin:0">Qui sotto l\'app riconosce da sola le spese e le entrate che ' +
-        'hai registrato <b>ogni mese</b> (affitto, stipendio, bollette…): puoi cambiarne l\'importo, ' +
+        'hai registrato <b>ogni mese</b> (affitto, stipendio, bollette\u2026): puoi cambiarne l\'importo, ' +
         'prolungarle o accorciarle <b>tutte insieme</b>, senza aprirle una per una.</div></div>' +
-    (serie.length ? serie.map((x,i) =>
+    (serie.length ? serie.map((x,i)=>
       '<div class="serie">' +
         '<div class="t"><span class="emoji">' + esc(x.categoria.emoji) + '</span>' +
           '<b>' + esc(x.descrizione) + '</b>' +
           '<span class="amt ' + (x.tipo === 'entrata' ? 'pos' : 'neg') + '">' +
-            (x.tipo === 'entrata' ? '+' : '−') + fmtMoney(x.importo) + '</span></div>' +
-        '<div class="meta">' + esc(x.categoria.nome) + ' · ' + x.n + ' ' + (x.n === 1 ? 'movimento' : 'movimenti') +
-          ' · dal ' + esc(monthLabel(monthKey(x.dal))) + ' al ' + esc(monthLabel(monthKey(x.al))) +
-          (x.importiDiversi ? ' · <b>l\'importo è cambiato</b>' : '') + '</div>' +
-        '<div class="fila">Prossima: <b>' + esc(dayLabel(x.prossimo)) + '</b> — il giorno ' +
+            (x.tipo === 'entrata' ? '+' : '\u2212') + fmtMoney(x.importo) + '</span></div>' +
+        '<div class="meta">' + esc(x.categoria.nome) + ' \u00b7 ' + x.n + ' ' + (x.n === 1 ? 'movimento' : 'movimenti') +
+          ' \u00b7 dal ' + esc(monthLabel(monthKey(x.dal))) + ' al ' + esc(monthLabel(monthKey(x.al))) +
+          (x.importiDiversi ? ' \u00b7 <b>l\'importo \u00e8 cambiato</b>' : '') + '</div>' +
+        '<div class="fila">Prossima: <b>' + esc(dayLabel(x.prossimo)) + '</b> \u2014 il giorno ' +
           parseInt(String(x.ultimo.data).slice(8,10),10) + ' di ogni mese</div>' +
         '<div class="mini-row">' +
-          '<button class="btn" data-action="rec-aperta" data-i="' + i + '">✏️ Cambia importo</button>' +
-          '<button class="btn" data-action="rec-prolunga" data-i="' + i + '">➕ Prolunga</button>' +
-          '<button class="btn" data-action="rec-accorcia" data-i="' + i + '">✂️ Accorcia</button>' +
-          '<button class="btn" data-action="rec-dettagli" data-i="' + i + '">📋 Vedi tutto</button>' +
+          '<button class="btn" data-action="rec-aperta" data-i="' + i + '">\u270f\ufe0f Cambia importo</button>' +
+          '<button class="btn" data-action="rec-prolunga" data-i="' + i + '">\u2795 Prolunga</button>' +
+          '<button class="btn" data-action="rec-accorcia" data-i="' + i + '">\u2702\ufe0f Accorcia</button>' +
+          '<button class="btn" data-action="rec-dettagli" data-i="' + i + '">\ud83d\udccb Vedi tutto</button>' +
         '</div>' +
       '</div>').join('')
     : '<div class="card"><div class="empty"><b>Nessuna spesa che si ripete</b>' +
       'Quando registri la stessa spesa per almeno 3 mesi di fila (per esempio l\'affitto), ' +
       'qui la trovi e puoi modificarla tutta con un tocco.</div></div>') +
+    (quasi.length ? '<div class="card"><h2>Perch\u00e9 non le vedi qui</h2>' +
+      '<div class="hint" style="margin:0 0 8px">Queste spese somigliano a un pagamento ripetuto, ' +
+      'ma non sono ancora una serie: fai quello che dice la riga e compariranno.</div>' +
+      quasi.map(q => '<div class="serie" style="padding:10px 12px">' +
+        '<div class="t"><span class="emoji">' + esc(q.emoji) + '</span><b>' + esc(q.nome) + '</b>' +
+          '<span class="amt neg">' + q.n + '\u00d7</span></div>' +
+        '<div class="meta">' + esc(q.categoria) + ' \u00b7 ' + esc(q.motivo) + '</div>' +
+        '<div class="fila">' + esc(q.rimedio) + '</div></div>').join('') + '</div>' : '') +
     '<div class="card"><h2>Come si crea una ricorrenza nuova</h2>' +
       '<div class="hint" style="margin:0">Nel foglio di un movimento attiva <b>Ripeti nei mesi</b> ' +
       'e scrivi per quanti mesi (per esempio 12 per un anno di affitto): l\'app crea una riga per ogni mese. ' +
-      'Da quel momento la trovi in questa sezione e puoi allungarla o accorciarla quando vuoi.</div></div>';
+      'Da quel momento la trovi in questa sezione e puoi allungarla o accorciarla quando vuoi.<br><br>' +
+      '<b>Va bene anche senza scrivere la descrizione</b>: in quel caso l\'app usa il nome della categoria. ' +
+      'Attenzione soltanto a una cosa: se ogni mese registri cose diverse con la <b>stessa</b> descrizione ' +
+      '(per esempio "pastore" ogni luned\u0300), quella non diventer\u00e0 una serie.</div></div>';
 }
 
 /** Etichetta di una serie, usata nelle finestrelle. */
@@ -1243,9 +1328,16 @@ async function recProlunga(i){
   const date = mesiInSuccessione(x.ultimo.data, n);
   let okN = 0;
   for (const iso of date){
+    // se le rate esistenti portano il mese fra parentesi, le nuove lo prendono
+    // uguale: così la serie resta riconoscibile e si legge come le altre
+    let desc = x.descBase || null;
+    if (desc && x.haSuffisso){
+      const d = new Date(iso + 'T12:00:00');
+      desc = desc + ' (' + MESI[d.getMonth()] + ' ' + d.getFullYear() + ')';
+    }
     const row = {
       tipo: x.tipo, data: iso, importo: x.importo, categoria_id: x.categoria.id,
-      descrizione: x.descrizione, fornitore: null, note: null, allegati: []
+      descrizione: desc, fornitore: null, note: null, allegati: []
     };
     const r = await sb.from('movimenti_conto').insert(row);
     if (!r.error) okN++;

@@ -2,8 +2,8 @@
    fino alla prossima connessione). Versione = nome cache: **cambiala ogni volta che
    modifichi index.html**, altrimenti l'app già installata continua a mostrare la
    versione vecchia. La versione la tiene allineata lo script sincronizza-cache.mjs: non cambiarla a mano. */
-const VERSIONE = 'conto-r11';
-const HASH = 'ebdaae4ce235bc8a';   // lo scrive sincronizza-cache.mjs: serve a capire se index.html e' cambiato
+const VERSIONE = 'conto-r12';
+const HASH = '27e36616bdc344f7';   // lo scrive sincronizza-cache.mjs: serve a capire se index.html e' cambiato
 const RISORSE = ['./', './index.html', './supabase.js', './manifest.webmanifest',
                  './pwa-192.png', './pwa-512.png', './apple-touch-icon.png'];
 
