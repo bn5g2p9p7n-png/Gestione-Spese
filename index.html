@@ -162,6 +162,11 @@
 
   /* ---- attachments ---- */
   /* ---- avviso "c'è una versione nuova" ---- */
+  .rep-anteprima{margin-top:8px; background:#f6f6f8; border-radius:11px; padding:9px 11px; font-size:12.5px;
+    color:var(--ink2); line-height:1.45}
+  .rep-anteprima b{color:#16233c}
+  .rep-anteprima .t{display:block; font-weight:700; color:#16233c; margin-bottom:4px}
+
   .upd{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; max-width:640px; margin:10px auto 0;
     background:#fff8e6; border:1px solid #f2d38a; border-radius:13px; padding:10px 12px; font-size:13px; color:#6b4e00}
   .upd[hidden]{display:none}
@@ -340,7 +345,7 @@
    Cambialo (r3 -> r4, r5...) ogni volta che modifichi questo file: serve a dire al
    telefono "butta via la copia invecchiata e prendi questa". Lo fa per te lo script
    app/sincronizza-cache.mjs, che chiama anche i test. */
-const APP_REV = 'r9';
+const APP_REV = 'r10';
 const APP_DATA = '30 settembre 2026';
 
 const FILE_CONFIG = {
@@ -468,6 +473,74 @@ function monthNext(k){
 function variazione(attuale, prima){
   if (!prima) return null;
   return Math.round((attuale - prima) / prima * 100);
+}
+/** n date ISO, una per mese, partendo dalla data data. Il giorno viene abbassato
+ *  quando il mese di arrivo e' piu' corto: 31 gennaio + 1 mese = 28 febbraio, non 3 marzo. */
+function mesiInSuccessione(dataISO, n){
+  const p = String(dataISO || todayISO()).split('-');
+  const y0 = parseInt(p[0],10) || 1970, m0 = parseInt(p[1],10) - 1 || 0, g0 = parseInt(p[2],10) || 1;
+  const out = [];
+  for (let i = 0; i < Math.max(1, n || 1); i++){
+    const d = new Date(y0, m0 + i, 1);
+    const ultimo = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    out.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' +
+             String(Math.min(g0, ultimo)).padStart(2,'0'));
+  }
+  return out;
+}
+/** Due movimenti "identici" = stesso tipo, data, importo, categoria e descrizione. */
+function firmaMovimento(m){
+  return [m.tipo, m.data, Number(m.importo || 0).toFixed(2), m.categoria_id || 0,
+          String(m.descrizione || '').trim().toLowerCase()].join('|');
+}
+function trovaDuplicati(movimenti){
+  const gruppi = {};
+  for (const m of movimenti) (gruppi[firmaMovimento(m)] || (gruppi[firmaMovimento(m)] = [])).push(m);
+  return Object.keys(gruppi).map(k => gruppi[k]).filter(g => g.length > 1);
+}
+/** Se in quella data c'e' gia' un movimento con stesso importo e tipo, chiede conferma.
+ *  Guarda sul database, non solo in memoria: cosi funziona anche con tanti movimenti. */
+async function chiediSeDuplicato(base, data){
+  let simili = [];
+  try {
+    const r = await client().from('movimenti_conto').select('id,data,importo,descrizione')
+      .eq('data', data).eq('tipo', base.tipo).eq('importo', base.importo).limit(5);
+    if (!r.error && r.data && r.data.length) simili = r.data;
+  } catch (e){ /* se non si puo' chiedere, si controlla quello che c'e' in memoria */ }
+  if (!simili.length){
+    simili = S.movimenti.filter(m => m.data === data && m.tipo === base.tipo &&
+      Number(m.importo || 0).toFixed(2) === Number(base.importo).toFixed(2));
+  }
+  if (!simili.length) return true;
+  return window.confirm('Attenzione: in questa data c\'e gia un movimento con lo stesso importo e tipo (' + (simili[0].descrizione || 'senza descrizione') +
+    ').\n\nVuoi registrarlo lo stesso?\n\nSe invece e un doppio invio accidentalmente, premi Annulla.');
+}
+/** Anteprima: quante spese verranno create e in che mesi. Serve a non registrarne
+ *  il doppio per errore, e a correggere subito il numero di mesi. */
+function anteprimaRipetizione(){
+  const sw = document.getElementById('sw-rep');
+  const box = document.getElementById('rep-box');
+  const q = document.getElementById('rep-quanti');
+  const an = document.getElementById('rep-anteprima');
+  if (!sw || !sw.classList.contains('on')){ nascondiAnteprimaRipetizione(); return; }
+  if (box) box.hidden = false;
+  const raw = parseInt((document.getElementById('f-rep') || {}).value || '1', 10);
+  const n = (raw > 0 && raw <= 60) ? raw : 1;
+  const data = (document.getElementById('f-data') || {}).value || todayISO();
+  const date = mesiInSuccessione(data, n);
+  if (q) q.textContent = 'Verranno create ' + n + (n === 1 ? ' spesa' : ' spese') +
+    (n > 1 ? ', una per ogni mese.' : '.');
+  if (an){
+    const mesiTxt = date.map(d => monthLabel(monthKey(d))).join(' · ');
+    an.innerHTML = '<span class="t">' + (n === 1 ? 'Solo questa:' : 'Mesi interessati:') + '</span>' + esc(mesiTxt) +
+      (n > 1 ? '<br>Importo e documento uguali in tutti. Ogni mese avrà la sua riga.' : '');
+  }
+}
+function nascondiAnteprimaRipetizione(){
+  const an = document.getElementById('rep-anteprima');
+  const q = document.getElementById('rep-quanti');
+  if (an) an.innerHTML = '';
+  if (q) q.textContent = '';
 }
 function prevMonth(k){
   const p = k.split('-'); const d = new Date(+p[0], +p[1]-2, 1);
@@ -1013,6 +1086,9 @@ function viewProfilo(el){
         'il rimedio è svuotare la cache: il telefono tiene una copia dei file anche quando sei online.</div>' +
     '</div>' +
     '<div class="card"><h2>I tuoi dati</h2>' +
+      '<button class="btn" data-action="cerca-dup" style="margin-bottom:10px">🔍 Cerca spese in doppio</button>' +
+      '<div class="hint" style="margin:0 0 10px">Trova i movimenti identici (stessa data, stesso importo, stessa descrizione) ' +
+        'e li rimuove, tenendone uno solo. Utile se un salvataggio è andato due volte.</div>' +
       '<button class="btn" data-action="export">⬇️ Esporta tutto in CSV (Excel)</button>' +
       '<div class="hint">Il CSV si apre con Numbers, Excel o Fogli Google: utile come backup periodico.</div>' +
     '</div>' +
@@ -1079,7 +1155,9 @@ function sheetMovimento(m, dataIniziale){   // eslint-disable-line
         '<div class="hint" id="rep-hint">es. stipendio per i prossimi 3 mesi</div></div>' +
         '<button type="button" class="sw" data-action="toggle-repeat" id="sw-rep"></button></div>' +
         '<div id="rep-box" hidden style="padding-bottom:12px"><label class="f" for="f-rep">Numero di mesi (compreso questo)</label>' +
-        '<input id="f-rep" type="text" inputmode="numeric" value="3"></div>' : '') +
+        '<input id="f-rep" type="text" inputmode="numeric" value="3">' +
+        '<div class="hint" id="rep-quanti"></div>' +
+        '<div class="rep-anteprima" id="rep-anteprima"></div></div>' : '') +
     '</div>' +
     '<div class="sheet-card"><h2 style="margin:14px 0 0">📎 Scontrini e documenti</h2>' +
       '<div id="f-att">' + attHtml(m ? m.allegati : [], false) + '</div>' +
@@ -1092,6 +1170,14 @@ function sheetMovimento(m, dataIniziale){   // eslint-disable-line
              : '<button type="button" class="btn primary" data-action="save-edit">✅ Salva modifiche</button>') +
     '</div>');
   hydrateThumbs();
+  // l'anteprima dei mesi si aggiorna mentre digiti il numero
+  const campoRipeti = document.getElementById('f-rep');
+  if (campoRipeti) campoRipeti.addEventListener('input', anteprimaRipetizione);
+  const campoData = document.getElementById('f-data');
+  if (campoData) campoData.addEventListener('change', function(){
+    const sw = document.getElementById('sw-rep');
+    if (sw && sw.classList.contains('on')) anteprimaRipetizione();
+  });
 }
 
 function attHtml(paths, isNew){
@@ -1175,7 +1261,26 @@ async function deleteNewFile(path){
 /* ============================================================
    10. AZIONI
    ============================================================ */
+/* Blocca i salvataggi: senza questo, due tocchi su "Salva" registravano tutto due
+   volte (una copia per ogni mese). Il tasto si blocca e si ricorda con un avviso. */
+let S_bloccato = false;
+function bloccaSalvo(attivo, testo){
+  const b = document.querySelector('[data-action="save-new"], [data-action="save-edit"]');
+  if (!b) return;
+  if (attivo){
+    if (!b.dataset.testo) b.dataset.testo = b.textContent;
+    b.disabled = true; b.textContent = testo || '⏳ Salvo…'; b.style.opacity = '.65';
+  } else {
+    b.disabled = false; b.textContent = b.dataset.testo || b.textContent; b.style.opacity = '';
+  }
+}
 async function saveMovimento(modify){
+  if (S_bloccato){ toast('Sto già salvando: aspetta un attimo'); return; }
+  S_bloccato = true; bloccaSalvo(true);
+  try { await salvaDavvero(modify); }
+  finally { S_bloccato = false; bloccaSalvo(false); }
+}
+async function salvaDavvero(modify){
   const sb = client();
   const tipoBtn = document.querySelector('#seg-tipo button.on');
   const tipo = tipoBtn ? tipoBtn.getAttribute('data-v') : 'uscita';
@@ -1210,12 +1315,17 @@ async function saveMovimento(modify){
     const v = parseInt((document.getElementById('f-rep') || {}).value || '1', 10);
     if (v > 1 && v <= 60) n = v;
   }
+  // se esiste gia' un movimento identico in quella data, chiede conferma:
+  // evita di ritrovarsi con due spese uguali per errore
+  if (!(await chiediSeDuplicato(base, data))){ return; }
+
   const rows = [];
-  const d = new Date(data + 'T12:00:00');
+  const dateDaUsare = mesiInSuccessione(data, n);
   for (let i = 0; i < n; i++){
-    const iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    const iso = dateDaUsare[i];
+    const dt = new Date(iso + 'T12:00:00');
     const row = Object.assign({}, base, {data: iso});
-    if (n > 1 && row.descrizione) row.descrizione = row.descrizione + ' (' + MESI_C[d.getMonth()] + ' ' + d.getFullYear() + ')';
+    if (n > 1 && row.descrizione) row.descrizione = row.descrizione + ' (' + MESI_C[dt.getMonth()] + ' ' + dt.getFullYear() + ')';
     const r = await sb.from('movimenti_conto').insert(row).select().single();
     if (r.error){
       toast('Salvataggio fallito: ' + msg(r.error));
@@ -1223,7 +1333,6 @@ async function saveMovimento(modify){
       break;
     }
     rows.push(r.data);
-    d.setMonth(d.getMonth() + 1);
   }
 
   // allegati -> cartella definitiva del primo movimento
@@ -1417,6 +1526,44 @@ async function doSaveConfig(){
   if (!S.user){ showLogin(); } else { try { await reload(); } catch (e){ toast(msg(e)); } }
 }
 
+/* ---- spese in doppio: controllo e pulizia -------------------------------- */
+function sheetDuplicati(){
+  const gruppi = trovaDuplicati(S.movimenti);
+  const eccedenti = gruppi.reduce((a,g) => a + g.length - 1, 0);
+  const corpo = !gruppi.length
+    ? '<div class="sheet-card"><div class="empty" style="padding:16px 4px"><b>Nessun doppione 🎉</b>' +
+      'Non ci sono movimenti identici fra loro.</div></div>'
+    : '<div class="sheet-card"><div class="hint" style="margin:10px 0">' + eccedenti +
+      ' spese in più da togliere. Per ogni gruppo viene tenuta la più vecchia.</div>' +
+      gruppi.map(g => {
+        const m = g[0];
+        return '<div class="row-item"><div class="emoji">📋</div><div class="row-main">' +
+          '<div class="row-t">' + esc(m.descrizione || (m.tipo === 'entrata' ? 'Entrata' : 'Spesa')) + '</div>' +
+          '<div class="row-s">' + esc(dayLabel(m.data)) + ' · ' + g.length + ' copie' +
+          (m.fornitore ? ' · ' + esc(m.fornitore) : '') + '</div></div>' +
+          '<div class="row-a">' + fmtMoney(m.importo) + '</div></div>';
+      }).join('') + '</div>' +
+      '<div class="btn-row"><button type="button" class="btn danger" data-action="ripulisci-dup">' +
+      '🧹 Togli le ' + eccedenti + ' copie in più</button></div>';
+  openSheet('<form class="sheet-head"><h3>Spese in doppio</h3>' +
+    '<button type="button" class="btn small" data-action="close-sheet">Chiudi</button></form>' + corpo);
+}
+async function ripulisciDuplicati(){
+  const sb = client();
+  const gruppi = trovaDuplicati(S.movimenti);
+  if (!gruppi.length){ closeSheet(); toast('Nessun doppione da togliere'); return; }
+  let tolti = 0;
+  for (const g of gruppi){
+    const daTogliere = g.slice().sort((a,b) => (a.creato_il || '') < (b.creato_il || '') ? -1 : 1).slice(1);
+    for (const m of daTogliere){
+      const r = await sb.from('movimenti_conto').delete().eq('id', m.id);
+      if (!r.error) tolti++;
+    }
+  }
+  closeSheet(); invalidate();
+  try { await reload(); } catch (e){ render(); }
+  toast(tolti ? tolti + ' ' + (tolti === 1 ? 'copia tolta' : 'copie tolte') + ' ✓' : 'Non sono riuscito a togliere nulla');
+}
 function sheetPassword(){
   openSheet('<form class="sheet-head"><h3>Cambia password</h3>' +
     '<button type="button" class="btn small" data-action="close-sheet">Chiudi</button></form>' +
@@ -1452,6 +1599,7 @@ document.addEventListener('click', async (ev) => {
     t.classList.toggle('on');
     const box = document.getElementById('rep-box');
     if (box) box.hidden = !t.classList.contains('on');
+    if (t.classList.contains('on')) anteprimaRipetizione(); else nascondiAnteprimaRipetizione();
   }
   else if (a === 'add-files'){ S.fileTarget = 'mov'; document.getElementById('file-input').click(); }
   else if (a === 'del-att'){
@@ -1461,6 +1609,8 @@ document.addEventListener('click', async (ev) => {
   else if (a === 'aggiorna'){ await aggiornaApp(); }
   else if (a === 'cerca-update'){ await cercaAggiornamento(false); }
   else if (a === 'svuota-cache'){ await svuotaCache(); }
+  else if (a === 'cerca-dup'){ sheetDuplicati(); }
+  else if (a === 'ripulisci-dup'){ await ripulisciDuplicati(); }
   else if (a === 'close-viewer'){ closeViewer(); }
   else if (a === 'open-url'){
     const u = t.getAttribute('data-url') || '';
