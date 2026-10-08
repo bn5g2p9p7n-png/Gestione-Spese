@@ -2,9 +2,10 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Il Mio Conto</title>
-<meta name="theme-color" content="#f2f2f7">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Conto">
@@ -14,7 +15,12 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
   :root{
-    --bg:#f2f2f7; --card:#ffffff; --ink:#1c1c1e; --ink2:#8a8a8e; --line:#e5e5ea;
+    color-scheme:light dark;
+    --surf:#ffffff; --fill:#e9e9ee; --fill2:var(--fill2); --grab:var(--grab); --segon:#ffffff;
+    --bar:var(--bar); --bar2:var(--bar2);
+    --navy:#16233c; --navytext:#16233c; --bluebg:var(--bluebg); --hl:rgba(22,35,60,.08);
+    --updbg:#fff8e6; --updline:#f2d38a; --updtx:#6b4e00; --heroA:var(--heroA);
+    --bg:var(--bg); --card:#ffffff; --ink:#1c1c1e; --ink2:#8a8a8e; --line:var(--line);
     --blue:#0a6cff; --green:#1a9e56; --red:#d64545; --greenbg:#e7f6ee; --redbg:#fdecec;
     --radius:16px; --shadow:0 1px 2px rgba(0,0,0,.05), 0 6px 18px rgba(0,0,0,.05);
   }
@@ -33,7 +39,7 @@
 
   /* schermata di benvenuto fra login e app: fa la sensazione di "app che si apre" */
   #splash{position:fixed; inset:0; z-index:90; display:grid; place-items:center;
-    background:linear-gradient(180deg,#eaf6f0,#f2f2f7 55%); animation:fadeOut .22s ease forwards}
+    background:linear-gradient(180deg,var(--heroA),var(--bg) 55%); animation:fadeOut .22s ease forwards}
   #splash[hidden]{display:none}
   .splash-logo{width:86px; height:86px; border-radius:26px; display:grid; place-items:center; font-size:40px;
     background:linear-gradient(150deg,#0e5f3f,#0a8f5e 60%,#0aa07a); color:#fff;
@@ -44,7 +50,7 @@
   .content{flex:1; padding:8px 14px 118px; overflow-x:hidden}
 
   /* ---- top bar ---- */
-  .topbar{position:sticky; top:0; z-index:20; background:rgba(242,242,247,.86);
+  .topbar{position:sticky; top:0; z-index:20; background:var(--bar);
     backdrop-filter:saturate(180%) blur(16px); -webkit-backdrop-filter:saturate(180%) blur(16px);
     border-bottom:.5px solid var(--line)}
   .topbar-in{max-width:640px; margin:0 auto; display:flex; align-items:center; gap:10px; padding:10px 14px}
@@ -71,7 +77,7 @@
   .balance.totale .lbl{opacity:.82}
   .balance.totale .val{font-size:38px}
   /* il saldo del mese scelto: sotto, piu' leggero */
-  .balance.mese{background:#fff; color:#16233c; box-shadow:var(--shadow); border:1px solid var(--line)}
+  .balance.mese{background:var(--surf); color:var(--navytext); box-shadow:var(--shadow); border:1px solid var(--line)}
   .balance.mese .lbl{color:var(--ink2); opacity:1}
   .balance.mese .val{font-size:30px}
   .balance.mese .row{color:var(--ink2); opacity:1; font-size:12.5px; margin-top:8px}
@@ -80,9 +86,9 @@
 
   .row-item{display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:.5px solid var(--line)}
   .row-item:last-child{border-bottom:none}
-  .row-item:active{background:#f6f6f8}
+  .row-item:active{background:var(--fill2)}
   .emoji{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;
-    font-size:19px;background:#f1f1f4;flex:0 0 auto}
+    font-size:19px;background:var(--fill2);flex:0 0 auto}
   .row-main{flex:1; min-width:0}
   .row-t{font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .row-s{font-size:12.5px; color:var(--ink2); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
@@ -95,7 +101,7 @@
 
   /* ---- buttons ---- */
   .btn{appearance:none; border:none; font:inherit; font-weight:600; padding:13px 16px; border-radius:13px;
-    background:#e9e9ee; color:var(--ink); text-align:center; cursor:pointer; display:block; width:100%}
+    background:var(--fill); color:var(--ink); text-align:center; cursor:pointer; display:block; width:100%}
   .btn:active{opacity:.7}
   .btn.primary{background:var(--blue); color:#fff}
   .btn.danger{background:var(--redbg); color:var(--red)}
@@ -103,15 +109,15 @@
   .btn.small{padding:9px 12px; font-size:14px; border-radius:11px; width:auto; display:inline-block}
   .btn-row{display:flex; gap:10px; margin-top:14px}
   .btn-row .btn{flex:1}
-  .chip{display:inline-flex; align-items:center; gap:5px; padding:7px 12px; border-radius:999px; background:#e9e9ee;
+  .chip{display:inline-flex; align-items:center; gap:5px; padding:7px 12px; border-radius:999px; background:var(--fill);
     font-size:13.5px; font-weight:600; color:var(--ink); border:none; white-space:nowrap}
-  .chip.on{background:var(--ink); color:#fff}
+  .chip.on{background:var(--ink); color:var(--bg)}
   .chips{display:flex; gap:8px; overflow-x:auto; padding:2px 0 8px; -webkit-overflow-scrolling:touch; scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
 
   /* ---- tab bar ---- */
   .tabbar{position:fixed; left:0; right:0; bottom:0; z-index:30;
-    background:rgba(255,255,255,.92); backdrop-filter:saturate(180%) blur(18px); -webkit-backdrop-filter:saturate(180%) blur(18px);
+    background:var(--bar2); backdrop-filter:saturate(180%) blur(18px); -webkit-backdrop-filter:saturate(180%) blur(18px);
     border-top:.5px solid var(--line); padding-bottom:env(safe-area-inset-bottom)}
   .tabbar-in{max-width:640px; margin:0 auto; display:grid; grid-template-columns:repeat(5,1fr); align-items:end}
   .tab{background:none; border:none; font:inherit; color:var(--ink2); padding:8px 2px 9px; display:flex; flex-direction:column;
@@ -126,24 +132,24 @@
   /* ---- form ---- */
   label.f{display:block; font-size:12.5px; color:var(--ink2); font-weight:600; margin:14px 2px 5px}
   input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],select,textarea{
-    width:100%; font:inherit; padding:12px 13px; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--ink);
+    width:100%; font:inherit; padding:12px 13px; border:1px solid var(--line); border-radius:12px; background:var(--surf); color:var(--ink);
     appearance:none; -webkit-appearance:none}
   input:focus,select:focus,textarea:focus{outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(10,108,255,.13)}
   textarea{min-height:66px; resize:vertical}
   select{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a8a8e' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:right 13px center; padding-right:34px}
-  .seg{display:flex; background:#e9e9ee; border-radius:12px; padding:3px; gap:3px}
+  .seg{display:flex; background:var(--fill); border-radius:12px; padding:3px; gap:3px}
   .seg button{flex:1; border:none; background:transparent; font:inherit; font-weight:600; padding:10px; border-radius:10px; color:var(--ink2); cursor:pointer}
-  .seg button.on{background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.12); color:var(--ink)}
+  .seg button.on{background:var(--segon); box-shadow:0 1px 3px rgba(0,0,0,.12); color:var(--ink)}
   .seg button.on[data-v=entrata]{color:var(--green)}
   .seg button.on[data-v=uscita]{color:var(--red)}
   .catgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
-  .catbtn{border:1.5px solid var(--line); background:#fff; border-radius:12px; padding:9px 3px; font:inherit; font-size:11px;
+  .catbtn{border:1.5px solid var(--line); background:var(--surf); border-radius:12px; padding:9px 3px; font:inherit; font-size:11px;
     display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer; color:var(--ink2); font-weight:600}
   .catbtn span{font-size:20px}
-  .catbtn.on{border-color:var(--blue); background:#eef4ff; color:var(--blue)}
+  .catbtn.on{border-color:var(--blue); background:var(--bluebg); color:var(--blue)}
   .switch{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-top:.5px solid var(--line)}
-  .sw{width:47px; height:29px; border-radius:999px; background:#d8d8dd; position:relative; border:none; cursor:pointer; transition:background .18s; flex:0 0 auto}
+  .sw{width:47px; height:29px; border-radius:999px; background:var(--grab); position:relative; border:none; cursor:pointer; transition:background .18s; flex:0 0 auto}
   .sw::after{content:''; position:absolute; top:2px; left:2px; width:25px; height:25px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .18s}
   .sw.on{background:var(--green)} .sw.on::after{transform:translateX(18px)}
 
@@ -157,28 +163,28 @@
     -webkit-overflow-scrolling:touch; animation:up .22s cubic-bezier(.2,.9,.3,1); padding:0 16px calc(20px + env(safe-area-inset-bottom))}
   .sheet-head{position:sticky; top:0; background:var(--bg); z-index:2; display:flex; align-items:center; gap:8px; padding:14px 0 8px}
   .sheet-head h3{margin:0; font-size:18px; font-weight:700; flex:1}
-  .sheet-card{background:#fff; border-radius:14px; padding:4px 14px 14px; margin-bottom:12px}
-  .grab{width:38px;height:5px;border-radius:3px;background:#d8d8dd;margin:8px auto 0}
+  .sheet-card{background:var(--surf); border-radius:14px; padding:4px 14px 14px; margin-bottom:12px}
+  .grab{width:38px;height:5px;border-radius:3px;background:var(--grab);margin:8px auto 0}
 
   /* ---- attachments ---- */
   /* ---- avviso "c'è una versione nuova" ---- */
   .mini-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
   .mini-row .btn{flex:1 1 44%; font-size:14px; padding:11px 10px}
-  .serie{border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-top:12px; background:#fff}
+  .serie{border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-top:12px; background:var(--surf)}
   .serie .t{display:flex; align-items:center; gap:10px}
   .serie .t .emoji{font-size:22px}
   .serie .t b{font-size:16px; font-weight:700; letter-spacing:-.2px}
   .serie .t .amt{margin-left:auto; font-weight:700; font-variant-numeric:tabular-nums}
   .serie .meta{font-size:12.5px; color:var(--ink2); margin-top:6px}
-  .serie .fila{font-size:12.5px; color:var(--ink2); margin-top:8px; background:#f6f6f8; border-radius:10px; padding:8px 10px}
+  .serie .fila{font-size:12.5px; color:var(--ink2); margin-top:8px; background:var(--fill2); border-radius:10px; padding:8px 10px}
 
-  .rep-anteprima{margin-top:8px; background:#f6f6f8; border-radius:11px; padding:9px 11px; font-size:12.5px;
+  .rep-anteprima{margin-top:8px; background:var(--fill2); border-radius:11px; padding:9px 11px; font-size:12.5px;
     color:var(--ink2); line-height:1.45}
-  .rep-anteprima b{color:#16233c}
-  .rep-anteprima .t{display:block; font-weight:700; color:#16233c; margin-bottom:4px}
+  .rep-anteprima b{color:var(--navytext)}
+  .rep-anteprima .t{display:block; font-weight:700; color:var(--navytext); margin-bottom:4px}
 
   .upd{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; max-width:640px; margin:10px auto 0;
-    background:#fff8e6; border:1px solid #f2d38a; border-radius:13px; padding:10px 12px; font-size:13px; color:#6b4e00}
+    background:var(--updbg); border:1px solid var(--updline); border-radius:13px; padding:10px 12px; font-size:13px; color:var(--updtx)}
   .upd[hidden]{display:none}
   .upd b{flex:1 1 100%; font-size:13.5px}
   .upd span{flex:1; opacity:.85; font-size:12.5px}
@@ -200,14 +206,14 @@
   .viewer-pdf .big-ic{font-size:56px}
   .viewer-pdf .row-btns{display:flex; gap:10px; justify-content:center; margin-top:16px; flex-wrap:wrap}
   .viewer-pdf .row-btns button{border:0; border-radius:11px; padding:12px 16px; font:inherit; font-weight:600;
-    background:#fff; color:#111}
+    background:var(--surf); color:#111}
   .viewer-pdf .row-btns button.sec{background:rgba(255,255,255,.16); color:#fff}
   .viewer-foot{color:rgba(255,255,255,.6); font-size:11.5px; text-align:center; padding:0 14px calc(10px + env(safe-area-inset-bottom))}
 
   .thumbs{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
-  .thumb{position:relative; width:74px; height:74px; border-radius:10px; overflow:hidden; background:#eee; border:.5px solid var(--line)}
+  .thumb{position:relative; width:74px; height:74px; border-radius:10px; overflow:hidden; background:var(--fill); border:.5px solid var(--line)}
   .thumb img{width:100%; height:100%; object-fit:cover; display:block}
-  .thumb .pdf{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;background:#f6f6f8}
+  .thumb .pdf{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;background:var(--fill2)}
   .thumb{cursor:zoom-in}
   .thumb .cap{position:absolute; left:0; right:0; bottom:0; padding:10px 4px 3px; font-size:8.5px; line-height:1.1;
     color:#fff; background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.62));
@@ -220,14 +226,14 @@
 
   /* ---- pulsante impostazioni: piccolo, in un angolo, non d-disturba ---- */
   .gear{position:fixed; top:calc(12px + env(safe-area-inset-top)); right:14px; z-index:41;
-    width:38px; height:38px; border-radius:50%; border:1px solid #e5e5ea; background:rgba(255,255,255,.86);
-    backdrop-filter:blur(8px); font-size:17px; line-height:1; color:#6b6b70; box-shadow:0 1px 3px rgba(0,0,0,.06)}
-  .gear:active{background:#f0f0f3}
+    width:38px; height:38px; border-radius:50%; border:1px solid var(--line); background:var(--bar2);
+    backdrop-filter:blur(8px); font-size:17px; line-height:1; color:var(--ink2); box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .gear:active{background:var(--fill)}
   .eye{margin-top:8px; background:none; border:none; padding:0; font-size:13px; color:#0a6cff; font-family:inherit}
   /* ---- login: pagina a se', a tutto schermo, che non si scorre ---- */
   #login{position:fixed; inset:0; z-index:40; overflow-y:auto; display:grid; place-items:center;
     padding:26px 20px calc(26px + env(safe-area-inset-bottom));
-    background:linear-gradient(180deg,#eaf6f0 0%,#f2f2f7 42%); overscroll-behavior:contain}
+    background:linear-gradient(180deg,var(--heroA) 0%,var(--bg) 42%); overscroll-behavior:contain}
   #login[hidden]{display:none}
   .login-box{width:100%; max-width:360px; text-align:center; margin:auto}
   .login-box .logo{width:78px;height:78px;border-radius:22px;margin:0 auto 16px; display:flex;align-items:center;justify-content:center;
@@ -243,22 +249,22 @@
   .monthbar{display:flex; gap:8px; overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -4px 14px;
     padding:2px 4px 6px; scrollbar-width:none}
   .monthbar::-webkit-scrollbar{display:none}
-  .mchip{flex:0 0 auto; min-width:62px; padding:7px 10px 6px; border-radius:13px; border:1px solid #e5e5ea;
-    background:#fff; font-family:inherit; text-align:center; line-height:1.15; box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .mchip{flex:0 0 auto; min-width:62px; padding:7px 10px 6px; border-radius:13px; border:1px solid var(--line);
+    background:var(--surf); font-family:inherit; text-align:center; line-height:1.15; box-shadow:0 1px 2px rgba(0,0,0,.04)}
   .mchip b{display:block; font-size:14px; font-weight:700; letter-spacing:-.2px}
   .mchip small{display:block; font-size:10.5px; color:var(--ink2); margin-top:2px}
   .mchip i{display:block; height:3px; border-radius:2px; margin-top:5px; background:transparent}
   .mchip[data-net="pos"] i{background:var(--green)}
   .mchip[data-net="neg"] i{background:var(--red)}
-  .mchip[data-net="zero"] i{background:#d9d9de}
-  .mchip.on{border-color:transparent; background:#16233c; color:#fff}
+  .mchip[data-net="zero"] i{background:var(--grab)}
+  .mchip.on{border-color:transparent; background:var(--navy); color:#fff}
   .mchip.on small{color:rgba(255,255,255,.72)}
   .mchip.on i{background:rgba(255,255,255,.55)}
 
   /* ---- variazioni e cifre ---- */
   .delta{font-size:12.5px; font-weight:600; margin-top:3px; display:inline-flex; align-items:center; gap:3px}
   .delta.good{color:var(--green)} .delta.bad{color:var(--red)} .delta.same{color:var(--ink2)}
-  .save-bar{height:9px; border-radius:5px; background:#ececf0; overflow:hidden; margin:8px 0 6px}
+  .save-bar{height:9px; border-radius:5px; background:var(--fill); overflow:hidden; margin:8px 0 6px}
   .save-bar i{display:block; height:100%; background:linear-gradient(90deg,#0e5f3f,#12a06b)}
   .big{font-size:22px; font-weight:800; letter-spacing:-.6px; font-variant-numeric:tabular-nums}
 
@@ -268,7 +274,7 @@
   .bar.dim{opacity:.42}
   .legend{display:flex; gap:14px; font-size:12px; color:var(--ink2); margin-top:6px}
   .dot{display:inline-block; width:9px;height:9px;border-radius:3px; margin-right:5px; vertical-align:middle}
-  .prog{height:7px; background:#eef0f2; border-radius:4px; overflow:hidden; margin-top:5px}
+  .prog{height:7px; background:var(--fill); border-radius:4px; overflow:hidden; margin-top:5px}
   .prog i{display:block; height:100%; border-radius:4px}
 
   .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(env(safe-area-inset-bottom) + 96px); z-index:80;
@@ -280,6 +286,26 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   .hint{font-size:12.5px; color:var(--ink2); margin-top:6px}
   a{color:var(--blue)}
+
+  /* ---- tema scuro: segue le impostazioni del telefono ---- */
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#000000; --card:#1c1c1e; --ink:#f2f2f7; --ink2:#9a9aa1; --line:#38383a;
+      --blue:#0a84ff; --green:#30d158; --red:#ff6b62; --greenbg:#0f2d1c; --redbg:#3a1a19;
+      --shadow:0 1px 2px rgba(0,0,0,.5);
+      --surf:#1c1c1e; --fill:#2c2c2e; --fill2:#262628; --grab:#48484a; --segon:#636366;
+      --bar:rgba(0,0,0,.78); --bar2:rgba(28,28,30,.92);
+      --navy:#2f4270; --navytext:#e8edf8; --bluebg:#0f2a4d; --hl:rgba(255,255,255,.10);
+      --updbg:#33290f; --updline:#6e5518; --updtx:#f0d48a; --heroA:#10261c;
+    }
+    .toast{background:rgba(60,60,64,.96)}
+  }
+
+  /* ---- budget mensile ---- */
+  .bwarn{background:var(--updbg); border:1px solid var(--updline); color:var(--updtx); border-radius:12px;
+    padding:10px 12px; font-size:13.5px; font-weight:600; margin-bottom:10px}
+  .bover{background:var(--redbg); color:var(--red); border-radius:12px; padding:10px 12px; font-size:13.5px;
+    font-weight:600; margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -319,6 +345,7 @@
     <span id="upd-txt">Tocca "Aggiorna" per usarla.</span>
     <button type="button" data-action="aggiorna">↻ Aggiorna</button>
   </div>
+  <div class="upd" id="coda" hidden></div>
   <div class="content" id="content"></div>
   <button class="addbtn" id="btn-add" aria-label="Nuovo movimento">+</button>
   <nav class="tabbar">
@@ -337,6 +364,7 @@
 <div id="sheet-root"></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="file-input" accept="image/*,application/pdf" multiple hidden>
+<input type="file" id="csv-input" accept=".csv,.txt,text/csv,text/plain" hidden>
 
 <script src="supabase.js"></script>
 <script>if (!window.supabase){ document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"><\/script>'); }</script>
@@ -356,8 +384,8 @@
    Cambialo (r3 -> r4, r5...) ogni volta che modifichi questo file: serve a dire al
    telefono "butta via la copia invecchiata e prendi questa". Lo fa per te lo script
    app/sincronizza-cache.mjs, che chiama anche i test. */
-const APP_REV = 'r12';
-const APP_DATA = '30 settembre 2026';
+const APP_REV = 'r13';
+const APP_DATA = '7 ottobre 2026';
 
 const FILE_CONFIG = {
   SUPABASE_URL: 'https://________________.supabase.co',
@@ -766,6 +794,7 @@ async function loadAll(){
   ]);
   if (rCat.error) throw rCat.error;
   if (rMov.error) throw rMov.error;
+  S.budgetOk = !(rCat.data || []).length || ('budget_mensile' in rCat.data[0]);
   S.categorie = (rCat.data || []).filter(c => c.attiva !== false);
   S.movimenti = rMov.data || [];
   if (S.movimenti.length >= 5000) setTimeout(() => toast('Mostrati gli ultimi 5000 movimenti'), 600);
@@ -914,6 +943,7 @@ function render(){
   document.getElementById('view-sub').textContent =
     S.view === 'home' ? monthLabel(homeMonth()) : '';
   const c = document.getElementById('content');
+  aggiornaBannerCoda();
   if (!S.caricato){ c.innerHTML = '<div class="spinner"></div>'; return; }
   if (S.view === 'home') return viewHome(c);
   if (S.view === 'movimenti') return viewMovimenti(c);
@@ -1044,6 +1074,7 @@ function viewHome(el){
       '<span><i class="dot" style="background:var(--red)"></i>Uscite</span>' +
       '<span class="mut" style="margin-left:auto">la barra evidenziata è il mese scelto</span></div>' +
     '</div>' +
+    budgetHtml(movMese, mk) +
     (topCat.length ? '<div class="card"><h2>Uscite per categoria · ' + esc(monthLabel(mk)) + '</h2>' +
       topCat.map(x =>
         '<div class="row-item"><div class="emoji">' + esc(x.emoji) + '</div><div class="row-main">' +
@@ -1083,16 +1114,16 @@ function chartHtml(mesi, byMonth, sel){
     const on = (sel && m === sel);
     bars += '<g class="bar" data-action="home-month" data-v="' + m + '"><title>' + monthLabel(m) +
       ' — in ' + fmtMoney(o.entrata||0) + ' / out ' + fmtMoney(o.uscita||0) + '</title>' +
-      '<rect x="' + (x-3) + '" y="0" width="' + (w*2+6) + '" height="' + H + '" fill="' +
-        (on ? 'rgba(22,35,60,.08)' : 'transparent') + '" rx="4"/>' +
-      '<rect x="' + x + '" y="' + (H - he) + '" width="' + w + '" height="' + Math.max(he, o.entrata?2:0) + '" rx="2" fill="#1a9e56"/>' +
-      '<rect x="' + (x + w + 1.5) + '" y="' + (H - hu) + '" width="' + w + '" height="' + Math.max(hu, o.uscita?2:0) + '" rx="2" fill="#d64545"/></g>';
+      '<rect x="' + (x-3) + '" y="0" width="' + (w*2+6) + '" height="' + H + '" style="fill:' +
+        (on ? 'var(--hl)' : 'transparent') + '" rx="4"/>' +
+      '<rect x="' + x + '" y="' + (H - he) + '" width="' + w + '" height="' + Math.max(he, o.entrata?2:0) + '" rx="2" style="fill:var(--green)"/>' +
+      '<rect x="' + (x + w + 1.5) + '" y="' + (H - hu) + '" width="' + w + '" height="' + Math.max(hu, o.uscita?2:0) + '" rx="2" style="fill:var(--red)"/></g>';
     labels += '<text x="' + (i*bw + bw/2) + '" y="' + (H+13) + '" text-anchor="middle" font-size="' + (on ? 11 : 9) +
-      '" font-weight="' + (on ? '700' : '400') + '" fill="' + (on ? '#16233c' : '#8a8a8e') + '">' +
+      '" font-weight="' + (on ? '700' : '400') + '" style="fill:' + (on ? 'var(--navytext)' : 'var(--ink2)') + '">' +
       (on || i % 2 === 0 ? esc(MESI_C[parseInt(m.split('-')[1],10)-1]) : '') + '</text>';
   });
   return '<svg viewBox="0 -6 ' + (W + pad*2) + ' ' + (H + 26) + '" width="' + Math.max(W, 300) + '" height="' + (H+24) + '" style="display:block">' +
-    '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" stroke="#e5e5ea"/>' + bars + labels + '</svg>';
+    '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" style="stroke:var(--line)"/>' + bars + labels + '</svg>';
 }
 
 /* ============================================================
@@ -1390,7 +1421,8 @@ function viewCategorie(el){
         const tot = S.movimenti.reduce((a,m) => a + ((m.categoria_id === c.id && m.tipo === c.tipo) ? Number(m.importo||0) : 0), 0);
         return '<div class="row-item" data-action="cat-edit" data-id="' + c.id + '">' +
           '<div class="emoji">' + esc(c.emoji) + '</div><div class="row-main"><div class="row-t">' + esc(c.nome) + '</div>' +
-          (tot ? '<div class="row-s">' + fmtMoney(tot) + ' in totale</div>' : '') + '</div>' +
+          ((tot || budgetDi(c)) ? '<div class="row-s">' + (tot ? fmtMoney(tot) + ' in totale' : '') +
+            (budgetDi(c) ? (tot ? ' · ' : '') + 'budget ' + fmtMoney(budgetDi(c)) + '/mese' : '') + '</div>' : '') + '</div>' +
           '<div class="chev">›</div></div>';
       }).join('') : '<div class="empty">Nessuna categoria.</div>') +
       '<button class="btn" data-action="cat-add" data-v="' + tipo + '" style="margin-top:12px">＋ Nuova categoria · ' +
@@ -1423,6 +1455,9 @@ function viewProfilo(el){
     '<div class="card"><h2>Sicurezza</h2>' +
       '<button class="btn" data-action="pass" style="margin-bottom:10px">🔑 Cambia password</button>' +
       '<button class="btn" data-action="config" style="margin-bottom:10px">⚙️ Impostazioni e configurazione</button>' +
+      '<label class="f" for="sel-blocco" style="margin-top:4px">🔒 Blocco automatico</label>' + selBlocco() +
+      '<div class="hint" style="margin-bottom:12px">Dopo questo tempo senza toccare l\'app (o se la lasci in background) ti viene chiesta di nuovo la password. ' +
+        'Su questo dispositivo, scelta salvata solo qui.</div>' +
       '<div class="hint">Gli allegati (scontrini, fatture) sono in uno spazio privato: nessun link pubblico, i link temporanei scadono dopo 10 minuti.</div>' +
       '<div class="hint" id="app-ver" style="margin-top:10px">Versione dell\'app: <b>' + APP_REV + '</b> · ' + esc(APP_DATA) +
         '<br>Se ti sembra vecchia, usa i due bottoni qui sotto.</div>' +
@@ -1435,11 +1470,13 @@ function viewProfilo(el){
       '<button class="btn" data-action="cerca-dup" style="margin-bottom:10px">🔍 Cerca spese in doppio</button>' +
       '<div class="hint" style="margin:0 0 10px">Trova i movimenti identici (stessa data, stesso importo, stessa descrizione) ' +
         'e li rimuove, tenendone uno solo. Utile se un salvataggio è andato due volte.</div>' +
+      '<button class="btn" data-action="import-csv" style="margin-bottom:10px">⬆️ Importa movimenti da CSV</button>' +
+      '<div class="hint" style="margin:0 0 10px">Per caricare lo storico o un estratto conto: vedrai un\'anteprima prima di salvare.</div>' +
       '<button class="btn" data-action="export">⬇️ Esporta tutto in CSV (Excel)</button>' +
       '<div class="hint">Il CSV si apre con Numbers, Excel o Fogli Google: utile come backup periodico.</div>' +
     '</div>' +
     '<button class="btn danger" data-action="logout">Esci</button>' +
-    '<p class="hint" style="text-align:center;margin-top:14px">Il Mio Conto · v1.0</p>';
+    '<p class="hint" style="text-align:center;margin-top:14px">Il Mio Conto · v1.1</p>';
 }
 
 /* ============================================================
@@ -1449,7 +1486,7 @@ function openSheet(html){
   const root = document.getElementById('sheet-root');
   root.innerHTML = '<div class="backdrop" id="bd"></div>' +
     '<div class="overlay" id="ov"><div class="sheet"><div class="grab"></div>' + html + '</div></div>';
-  document.getElementById('bd').addEventListener('click', () => { closeSheet(); render(); });
+  document.getElementById('bd').addEventListener('click', () => { annullaSheet(); });
   document.body.style.overflow = 'hidden';
 }
 function closeSheet(){
@@ -1457,6 +1494,15 @@ function closeSheet(){
   document.body.style.overflow = '';
   S.sheetFiles = [];
   S.editingId = null;
+  S.imp = null;
+}
+/** Chiusura "senza salvare": i file gia' caricati su Supabase ma non collegati a nessun movimento vengono tolti. */
+async function annullaSheet(){
+  const orfani = (S.sheetFiles || []).slice();
+  closeSheet(); render();
+  if (orfani.length){
+    try { await client().storage.from('scontrini').remove(orfani); } catch (e){ /* ci pensa la pulizia periodica */ }
+  }
 }
 
 function catButtons(tipo, selId){
@@ -1650,7 +1696,8 @@ async function salvaDavvero(modify){
     if (r.error){ toast('Salvataggio fallito: ' + msg(r.error)); return; }
     closeSheet(); invalidate();
     try { await reload(); } catch (e){ render(); }
-    toast('Movimento aggiornato ✓');
+    const avM = avvisoBudget(base.categoria_id, monthKey(data));
+    toast('Movimento aggiornato ✓' + (avM ? ' · ' + avM : ''));
     return;
   }
 
@@ -1667,13 +1714,32 @@ async function salvaDavvero(modify){
 
   const rows = [];
   const dateDaUsare = mesiInSuccessione(data, n);
-  for (let i = 0; i < n; i++){
-    const iso = dateDaUsare[i];
+  const daInserire = dateDaUsare.map((iso) => {
     const dt = new Date(iso + 'T12:00:00');
     const row = Object.assign({}, base, {data: iso});
     if (n > 1 && row.descrizione) row.descrizione = row.descrizione + ' (' + MESI_C[dt.getMonth()] + ' ' + dt.getFullYear() + ')';
+    return row;
+  });
+  // senza rete: il movimento resta sul telefono e parte da solo appena torna la connessione
+  if (navigator.onLine === false){
+    if (S.sheetFiles.length){ toast('Sei offline: gli allegati si salvano solo con la rete. Toglili oppure riprova online.'); return; }
+    accodaMovimenti(daInserire, false);
+    closeSheet(); render();
+    toast('Sei offline: movimento messo in coda ✓ partirà da solo');
+    return;
+  }
+  for (let i = 0; i < daInserire.length; i++){
+    const row = daInserire[i];
     const r = await sb.from('movimenti_conto').insert(row).select().single();
     if (r.error){
+      if (erroreDiRete(r.error) && !S.sheetFiles.length){
+        // la rete e' caduta durante l'invio: non so se questa riga sia arrivata, quindi la segno come "da verificare"
+        accodaMovimenti(daInserire.slice(i), true);
+        if (rows.length){ invalidate(); try { await reload(); } catch (e){ render(); } }
+        closeSheet(); render();
+        toast('Connessione persa: movimento in coda ✓ verrà inviato dopo');
+        return;
+      }
       toast('Salvataggio fallito: ' + msg(r.error));
       if (!rows.length) return;
       break;
@@ -1688,12 +1754,10 @@ async function salvaDavvero(modify){
       const fname = p.split('/').pop();
       const dest = S.user.id + '/' + rows[0].id + '/' + fname;
       if (p.indexOf('/temporanei/') >= 0){
-        const c = await sb.storage.from('scontrini').copy('scontrini', p, dest);
-        if (c.error){
-          const mv = await sb.storage.from('scontrini').move(p, dest);
-          keep.push(mv.error ? p : mv.data.path);
-          if (mv.error) keep[keep.length-1] = p;
-        } else keep.push(c.data.path);
+        // move(origine, destinazione): sposta il file dalla cartella provvisoria a quella del movimento.
+        // Il percorso da salvare e' SEMPRE quello di destinazione che conosciamo: la risposta di move non contiene un "path".
+        const mv = await sb.storage.from('scontrini').move(p, dest);
+        keep.push(mv.error ? p : dest);
       } else keep.push(p);
     }
     // copie per i mesi ripetuti (stesso documento disponibile anche sui duplicati)
@@ -1701,8 +1765,9 @@ async function salvaDavvero(modify){
     for (const p of keep){
       for (let i = 0; i < perRow.length; i++){
         const dest = S.user.id + '/' + rows[i+1].id + '/' + p.split('/').pop();
-        const c = await sb.storage.from('scontrini').copy('scontrini', p, dest);
-        if (!c.error) perRow[i].push(c.data.path);
+        // copy(origine, destinazione): senza il nome del bucket come primo argomento
+        const c = await sb.storage.from('scontrini').copy(p, dest);
+        if (!c.error) perRow[i].push(dest);
       }
     }
     await sb.from('movimenti_conto').update({allegati: keep}).eq('id', rows[0].id);
@@ -1722,7 +1787,8 @@ async function salvaDavvero(modify){
     const toccato = rows.length ? (rows[rows.length-1].mese || monthKey(rows[rows.length-1].data)) : null;
     if (toccato && toccato !== homeMonth()){ S.meseHome = toccato; render(); }
   }
-  toast(rows.length > 1 ? rows.length + ' movimenti registrati ✓' : 'Movimento registrato ✓');
+  const avB = rows.length ? avvisoBudget(base.categoria_id, rows[0].mese || monthKey(rows[0].data)) : '';
+  toast((rows.length > 1 ? rows.length + ' movimenti registrati ✓' : 'Movimento registrato ✓') + (avB ? ' · ' + avB : ''));
 }
 
 async function deleteMovimento(id){
@@ -1771,7 +1837,7 @@ function sheetCategoria(c, tipoDefault){
       '<div class="seg" id="seg-cat">' +
         '<button type="button" data-v="uscita" class="' + ((c?c.tipo:tipoDefault)==='uscita'?'on':'') + '">📤 Uscita</button>' +
         '<button type="button" data-v="entrata" class="' + ((c?c.tipo:tipoDefault)==='entrata'?'on':'') + '">📥 Entrata</button>' +
-      '</div>' +
+      '</div>' + campoBudgetHtml(c) +
     '</div>' +
     '<div class="btn-row"><button type="button" class="btn primary" data-action="cat-save" data-id="' + (c ? c.id : '') + '">✅ Salva</button></div>');
 }
@@ -1786,6 +1852,15 @@ async function saveCategoria(id){
   const dup = S.categorie.find(c => c.nome.toLowerCase() === nome.toLowerCase() && String(c.id) !== String(id));
   if (dup){ toast('Esiste già una categoria con questo nome'); return; }
   const payload = {nome, emoji, tipo};
+  if (S.budgetOk){
+    const txt = String((document.getElementById('c-budget') || {}).value || '').trim();
+    if (!txt || tipo !== 'uscita') payload.budget_mensile = null;
+    else {
+      const b = parseAmount(txt);
+      if (!(b > 0) || b > 99999999){ toast('Budget non valido: scrivi un importo come 300 oppure 250,50'); return; }
+      payload.budget_mensile = Math.round(b * 100) / 100;
+    }
+  }
   let r;
   if (id) r = await sb.from('categorie_conto').update(payload).eq('id', id);
   else r = await sb.from('categorie_conto').insert(Object.assign(payload, {ordine: 500}));
@@ -1921,6 +1996,492 @@ function sheetPassword(){
     '<div class="btn-row"><button type="button" class="btn primary" data-action="pass-save">✅ Cambia</button></div>');
 }
 
+
+/* ============================================================
+   10bis. NOVITA' r13: auth, blocco per inattivita', coda offline,
+          pulizia file, budget mensile, importazione CSV
+   ============================================================ */
+
+/* ---- A) Collegamento agli eventi di accesso ---- */
+function collegaAuth(sb){
+  const r = sb.auth.onAuthStateChange((event, session) => {
+    // Importante: dentro questa funzione non si aspettano chiamate a Supabase (rischio di blocco della libreria):
+    // il lavoro vero parte un attimo dopo con setTimeout.
+    if (event === 'SIGNED_OUT'){ S.caricato = false; S.user = null; showLogin(); }
+    else if (event === 'SIGNED_IN' && !S.user && !S.accedendo){
+      if (!session || !session.user) return;
+      // lo stesso controllo del login: solo l'email del proprietario puo' entrare
+      if (String(session.user.email).toLowerCase() !== CFG.EMAIL_OWNER.toLowerCase()){
+        setTimeout(() => { sb.auth.signOut(); }, 0);
+        return;
+      }
+      setTimeout(() => { afterAuth(session.user); }, 0);
+    }
+  });
+  S.authSub = (r && r.data && r.data.subscription) ? r.data.subscription : null;
+}
+
+/* ---- B) Blocco automatico per inattivita' ---- */
+const LOCK_KEY = 'conto_blocco_min';
+const LOCK_OPZIONI = [[0,'Mai'],[2,'Dopo 2 minuti'],[5,'Dopo 5 minuti'],[10,'Dopo 10 minuti'],[15,'Dopo 15 minuti'],[30,'Dopo 30 minuti']];
+function minutiBlocco(){
+  let v = NaN;
+  try { v = parseInt(window.localStorage.getItem(LOCK_KEY), 10); } catch (e){}
+  return isNaN(v) ? 10 : v;
+}
+function selBlocco(){
+  const m = minutiBlocco();
+  return '<select id="sel-blocco">' + LOCK_OPZIONI.map(o =>
+    '<option value="' + o[0] + '"' + (o[0] === m ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>';
+}
+let ultimaAttivita = Date.now();
+function segnaAttivita(){ ultimaAttivita = Date.now(); }
+['pointerdown','touchstart','keydown','scroll','input'].forEach(n =>
+  document.addEventListener(n, segnaAttivita, {passive:true, capture:true}));
+
+/** Toglie dal dispositivo la sessione salvata da Supabase (serve anche se il logout non riesce per mancanza di rete). */
+function dimenticaSessioneLocale(){
+  try {
+    Object.keys(window.localStorage).filter(k => /^sb-.*-auth-token/.test(k))
+      .forEach(k => window.localStorage.removeItem(k));
+  } catch (e){}
+}
+async function bloccaApp(testo){
+  const vecchio = S.sb;
+  try { if (S.authSub) S.authSub.unsubscribe(); } catch (e){}
+  S.authSub = null;
+  try {
+    if (vecchio){
+      await Promise.race([vecchio.auth.signOut({scope:'local'}), new Promise(r => setTimeout(r, 2500))]);
+      if (vecchio.auth.stopAutoRefresh) await vecchio.auth.stopAutoRefresh();
+    }
+  } catch (e){}
+  dimenticaSessioneLocale();
+  S.sb = null;
+  S.movimenti = []; S.categorie = []; S.caricato = false; S.user = null; S.sheetFiles = [];
+  S.urlCache.clear();
+  closeSheet(); closeViewer();
+  try { collegaAuth(client()); } catch (e){}
+  showLogin();
+  if (testo) loginError(testo);
+}
+function controllaBlocco(){
+  const m = minutiBlocco();
+  if (!m || !S.user) return;
+  if (S_bloccato){ segnaAttivita(); return; }          // sta salvando: non interrompere
+  if (Date.now() - ultimaAttivita >= m * 60000){
+    bloccaApp('Per sicurezza l\u2019app si è bloccata dopo ' + m + ' minuti senza uso. Inserisci di nuovo la password.');
+  }
+}
+setInterval(controllaBlocco, 15000);
+// quando torni sull'app dopo un po': il timer di iPhone si ferma in background, quindi si confronta l'orario
+document.addEventListener('visibilitychange', () => { if (!document.hidden) controllaBlocco(); });
+document.addEventListener('change', (ev) => {
+  const t = ev.target;
+  if (!t) return;
+  if (t.id === 'sel-blocco'){
+    try { window.localStorage.setItem(LOCK_KEY, String(parseInt(t.value, 10) || 0)); } catch (e){}
+    segnaAttivita();
+    toast(parseInt(t.value, 10) ? 'Blocco dopo ' + parseInt(t.value, 10) + ' minuti ✓' : 'Blocco automatico disattivato');
+  }
+  if (t.id === 'imp-tipodef' && S.imp){ S.imp.tipoDef = t.value; mostraAnteprimaImport(); }
+});
+
+/* ---- C) Coda offline: movimenti nuovi salvati sul telefono e inviati appena c'e' rete ---- */
+const CODA_KEY = 'conto_coda_v1';
+function leggiCoda(){
+  try { const a = JSON.parse(window.localStorage.getItem(CODA_KEY) || '[]'); return Array.isArray(a) ? a : []; }
+  catch (e){ return []; }
+}
+function scriviCoda(c){ try { window.localStorage.setItem(CODA_KEY, JSON.stringify(c)); } catch (e){} }
+function nInCoda(){ return leggiCoda().reduce((a, v) => a + ((v.rows || []).length), 0); }
+function erroreDiRete(err){
+  const m = String((err && (err.message || err)) || '');
+  return navigator.onLine === false || /Failed to fetch|NetworkError|Load failed|network|ERR_INTERNET|timed out/i.test(m);
+}
+function accodaMovimenti(rows, ambiguo){
+  const c = leggiCoda();
+  c.push({qid: uid(), rows: rows, ambiguo: !!ambiguo, ts: Date.now()});
+  scriviCoda(c);
+  aggiornaBannerCoda();
+}
+function aggiornaBannerCoda(){
+  const el = document.getElementById('coda');
+  if (!el) return;
+  const n = nInCoda();
+  if (!n || !S.user){ el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = '<b>⏳ ' + n + ' moviment' + (n === 1 ? 'o' : 'i') + ' in attesa di invio</b>' +
+    '<span>Salvati su questo telefono: partono da soli appena c\u2019è rete.</span>' +
+    '<button type="button" data-action="coda-invia">Invia ora</button>' +
+    '<button type="button" data-action="coda-scarta" style="background:#8a8a8e">Scarta</button>';
+}
+let invioCodaInCorso = false;
+async function svuotaCoda(silenzioso){
+  if (invioCodaInCorso || !S.user || !nInCoda()) return;
+  if (navigator.onLine === false){ if (!silenzioso) toast('Sei ancora offline: riprovo appena torna la rete'); return; }
+  invioCodaInCorso = true;
+  let inviati = 0, fermo = false;
+  try {
+    const sb = client();
+    let coda = leggiCoda();
+    for (const voce of coda){
+      while (voce.rows.length){
+        const row = voce.rows[0];
+        if (voce.ambiguo){
+          // un invio precedente puo' essere arrivato davvero: se esiste gia' lo stesso movimento, non lo ripeto
+          let q = sb.from('movimenti_conto').select('id').eq('data', row.data).eq('tipo', row.tipo).eq('importo', row.importo);
+          q = row.descrizione ? q.eq('descrizione', row.descrizione) : q.is('descrizione', null);
+          const g = await q.limit(1);
+          if (g.error){ fermo = true; break; }
+          voce.ambiguo = false;
+          if (g.data && g.data.length){ voce.rows.shift(); scriviCoda(coda); continue; }
+        }
+        const r = await sb.from('movimenti_conto').insert(row);
+        if (r.error){
+          if (erroreDiRete(r.error)){ voce.ambiguo = navigator.onLine !== false; scriviCoda(coda); }
+          else toast('Un movimento in coda non è stato accettato: ' + msg(r.error));
+          fermo = true; break;
+        }
+        voce.rows.shift(); inviati++; scriviCoda(coda);
+      }
+      if (fermo) break;
+    }
+    scriviCoda(coda.filter(v => v.rows.length));
+  } catch (e){ fermo = true; }
+  finally { invioCodaInCorso = false; }
+  aggiornaBannerCoda();
+  if (inviati){
+    invalidate();
+    try { await reload(); } catch (e){ render(); }
+    toast(inviati + (inviati === 1 ? ' movimento inviato' : ' movimenti inviati') + ' dalla coda ✓');
+  } else if (fermo && !silenzioso) toast('Invio non riuscito: i movimenti restano in coda');
+}
+
+/* ---- D) Pulizia automatica dei file rimasti in "temporanei" ---- */
+const PULIZIA_KEY = 'conto_pulizia_ts';
+async function pulisciTemporanei(){
+  if (!S.user) return;
+  let ultimo = 0;
+  try { ultimo = Number(window.localStorage.getItem(PULIZIA_KEY)) || 0; } catch (e){}
+  if (Date.now() - ultimo < 6 * 3600 * 1000) return;           // al massimo una volta ogni 6 ore
+  const sb = client();
+  const cartella = S.user.id + '/temporanei';
+  const r = await sb.storage.from('scontrini').list(cartella, {limit: 200});
+  if (r.error) return;                                           // riprova alla prossima apertura
+  const usati = new Set();
+  S.movimenti.forEach(m => (m.allegati || []).forEach(p => usati.add(p)));   // mai toccare un file collegato a un movimento
+  const limite = Date.now() - 24 * 3600 * 1000;                  // solo file piu' vecchi di un giorno
+  const daTogliere = (r.data || [])
+    .filter(f => f.id && f.name && f.created_at && new Date(f.created_at).getTime() < limite)
+    .map(f => cartella + '/' + f.name)
+    .filter(p => !usati.has(p));
+  if (daTogliere.length) await sb.storage.from('scontrini').remove(daTogliere);
+  try { window.localStorage.setItem(PULIZIA_KEY, String(Date.now())); } catch (e){}
+}
+
+/* ---- E) Budget mensile per categoria ---- */
+function budgetDi(c){ const b = Number(c && c.budget_mensile); return b > 0 ? b : 0; }
+function campoBudgetHtml(c){
+  if (!S.budgetOk){
+    return '<label class="f">Budget mensile</label><div class="hint">Per usare i budget serve un\u2019operazione una tantum su Supabase (SQL Editor): ' +
+      '<code>alter table public.categorie_conto add column if not exists budget_mensile numeric(12,2);</code> ' +
+      'Dopo averla eseguita, ricarica l\u2019app.</div>';
+  }
+  const b = budgetDi(c);
+  return '<div id="c-budget-box"><label class="f" for="c-budget">Budget mensile in € (facoltativo, solo uscite)</label>' +
+    '<input id="c-budget" type="text" inputmode="decimal" placeholder="es. 300" value="' + (b ? esc(String(b).replace('.', ',')) : '') + '">' +
+    '<div class="hint">In Home vedrai quanto hai speso rispetto a questo limite e un avviso quando lo superi. Lascia vuoto per nessun limite.</div></div>';
+}
+function budgetHtml(movMese, mk){
+  const cats = S.categorie.filter(c => c.tipo === 'uscita' && budgetDi(c) > 0);
+  if (!cats.length) return '';
+  const speso = {};
+  for (const m of movMese){
+    if (m.tipo === 'uscita' && m.categoria_id) speso[m.categoria_id] = (speso[m.categoria_id] || 0) + Number(m.importo || 0);
+  }
+  const righe = cats.map(c => { const b = budgetDi(c), s = speso[c.id] || 0; return {c: c, b: b, s: s, p: s / b * 100}; })
+    .sort((x, y) => y.p - x.p);
+  const sfora = righe.filter(r => r.p > 100).length;
+  const vicine = righe.filter(r => r.p >= 80 && r.p <= 100).length;
+  const totB = righe.reduce((a, r) => a + r.b, 0), totS = righe.reduce((a, r) => a + r.s, 0);
+  const colore = (p) => p > 100 ? 'var(--red)' : p >= 80 ? '#f0a500' : 'var(--green)';
+  const avviso = sfora
+    ? '<div class="bover">⚠️ ' + (sfora === 1 ? 'Un budget superato' : sfora + ' budget superati') + ' in ' + esc(monthLabel(mk)) + '</div>'
+    : vicine ? '<div class="bwarn">🟡 ' + (vicine === 1 ? 'Una categoria è' : vicine + ' categorie sono') + ' vicin' + (vicine === 1 ? 'a' : 'e') + ' al limite (oltre l\u201980%)</div>' : '';
+  return '<div class="card"><h2>Budget · ' + esc(monthLabel(mk)) + '</h2>' + avviso +
+    righe.map(r =>
+      '<div class="row-item"><div class="emoji">' + esc(r.c.emoji) + '</div><div class="row-main">' +
+      '<div class="row-t">' + esc(r.c.nome) + '</div>' +
+      '<div class="prog"><i style="width:' + Math.max(r.s > 0 ? 3 : 0, Math.min(100, Math.round(r.p))) + '%;background:' + colore(r.p) + '"></i></div>' +
+      '<div class="row-s" style="color:' + (r.p > 100 ? 'var(--red)' : 'var(--ink2)') + '">' +
+        (r.p > 100 ? 'oltre di ' + fmtMoney(r.s - r.b) : 'restano ' + fmtMoney(r.b - r.s)) + ' · ' + Math.round(r.p) + '%</div></div>' +
+      '<div class="row-a">' + fmtMoney(r.s) + '<small>su ' + fmtMoney(r.b) + '</small></div></div>').join('') +
+    '<div class="hint" style="margin-top:8px">In totale per le categorie con budget: ' + fmtMoney(totS) + ' su ' + fmtMoney(totB) + '.</div></div>';
+}
+/** Testo breve da mostrare dopo un salvataggio, se quella categoria e' vicina o oltre il budget del mese. */
+function avvisoBudget(catId, mese){
+  const c = catById(catId), b = budgetDi(c);
+  if (!c || !b || c.tipo !== 'uscita') return '';
+  const speso = S.movimenti.filter(m => m.tipo === 'uscita' && m.categoria_id === c.id && (m.mese || monthKey(m.data)) === mese)
+    .reduce((a, m) => a + Number(m.importo || 0), 0);
+  if (speso > b) return '⚠️ Budget “' + c.nome + '” superato di ' + fmtMoney(speso - b);
+  if (speso >= b * 0.8) return '🟡 Budget “' + c.nome + '” al ' + Math.round(speso / b * 100) + '%';
+  return '';
+}
+
+/* ---- F) Importazione da CSV ---- */
+const ALIAS_CSV = {
+  data: ['data', 'date', 'data operazione', 'data contabile', 'data valuta', 'data movimento'],
+  importo: ['importo', 'amount', 'valore', 'totale', 'importo euro', 'importo eur'],
+  tipo: ['tipo', 'segno'],
+  categoria: ['categoria', 'category'],
+  descrizione: ['descrizione', 'description', 'causale', 'dettaglio', 'operazione', 'descrizione operazione'],
+  fornitore: ['fornitore', 'beneficiario', 'esercente', 'controparte', 'merchant'],
+  note: ['note', 'nota', 'notes']
+};
+const ALIAS_COL_ENTRATE = ['entrate', 'entrata', 'accrediti', 'accredito', 'avere'];
+const ALIAS_COL_USCITE = ['uscite', 'uscita', 'addebiti', 'addebito', 'dare'];
+
+function normIntestazione(x){
+  return String(x == null ? '' : x).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+/** Legge un CSV: riconosce ; , o tabulazione e le virgolette. Restituisce righe di celle. */
+function csvParse(testo){
+  const t = String(testo || '').replace(/^\ufeff/, '');
+  const prima = t.split(/\r?\n/, 1)[0] || '';
+  const conta = (ch) => prima.split(ch).length - 1;
+  let sep = ';', best = conta(';');
+  if (conta(',') > best){ sep = ','; best = conta(','); }
+  if (conta('\t') > best){ sep = '\t'; }
+  const righe = [];
+  let riga = [], cella = '', dentro = false;
+  for (let i = 0; i < t.length; i++){
+    const ch = t[i];
+    if (dentro){
+      if (ch === '"'){ if (t[i + 1] === '"'){ cella += '"'; i++; } else dentro = false; }
+      else cella += ch;
+    } else if (ch === '"') dentro = true;
+    else if (ch === sep){ riga.push(cella); cella = ''; }
+    else if (ch === '\n' || ch === '\r'){
+      if (ch === '\r' && t[i + 1] === '\n') i++;
+      riga.push(cella); cella = ''; righe.push(riga); riga = [];
+    } else cella += ch;
+  }
+  if (cella !== '' || riga.length){ riga.push(cella); righe.push(riga); }
+  return righe.filter(r => r.some(x => String(x).trim() !== ''));
+}
+function parseDataCsv(raw){
+  const s = String(raw == null ? '' : raw).trim().split(/[T\s]/)[0];
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s), y, mo, d;
+  if (m){ y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else {
+    m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})$/.exec(s);
+    if (!m) return null;
+    d = +m[1]; mo = +m[2]; y = +m[3];
+    if (m[3].length === 2) y += 2000;
+  }
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function parseImportoCsv(raw){
+  let x = String(raw == null ? '' : raw).replace(/[\u00a0\s]/g, '').replace(/€|eur/ig, '').replace(/^\+/, '');
+  if (/^\d[\d.,]*-$/.test(x)) x = '-' + x.slice(0, -1);              // "12,50-" = -12,50
+  if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(x)) x = x.replace(/,/g, '');   // formato inglese 1,234.56
+  return parseAmount(x);
+}
+function tipoDaCsv(v){
+  const x = normIntestazione(v);
+  if (!x) return null;
+  if (/^(e|entrata|entrate|in|income|accredito|avere)\b/.test(x)) return 'entrata';
+  if (/^(u|uscita|uscite|out|spesa|addebito|dare)\b/.test(x)) return 'uscita';
+  return null;
+}
+function chiaveImport(r){ return [r.tipo, r.data, Number(r.importo).toFixed(2), String(r.descrizione || '').trim().toLowerCase()].join('|'); }
+
+/** Trasforma il testo del CSV in movimenti pronti, segnando doppioni e righe da scartare. */
+function analizzaCsv(testo, opz){
+  opz = opz || {};
+  const grezze = csvParse(testo);
+  if (grezze.length < 2) return {errore: 'Il file è vuoto o contiene solo l\u2019intestazione.'};
+  if (grezze.length > 3001) return {errore: 'Il file ha più di 3000 righe: dividilo in due parti e importale una alla volta.'};
+  const head = grezze[0].map(normIntestazione);
+  const idx = {};
+  for (const k of Object.keys(ALIAS_CSV)){
+    for (const a of ALIAS_CSV[k]){ const i = head.indexOf(a); if (i >= 0){ idx[k] = i; break; } }
+  }
+  const trova = (lista) => { for (const a of lista){ const i = head.indexOf(a); if (i >= 0) return i; } return null; };
+  const colE = trova(ALIAS_COL_ENTRATE), colU = trova(ALIAS_COL_USCITE);
+  if (idx.data == null || (idx.importo == null && colE == null && colU == null)){
+    return {errore: 'Non riconosco le colonne. Nella prima riga servono almeno “data” e “importo” (oppure “entrate” e “uscite”). Trovate: ' + grezze[0].join(', ')};
+  }
+  const haTipo = idx.tipo != null || (idx.importo == null);
+  const esistenti = new Set(S.movimenti.map(m => chiaveImport(m)));
+  const out = {righe: [], scartate: [], catNuove: {}, haTipo: haTipo, errore: null};
+  for (let n = 1; n < grezze.length; n++){
+    const r = grezze[n], num = n + 1;
+    const cella = (k) => idx[k] != null ? String(r[idx[k]] == null ? '' : r[idx[k]]).trim() : '';
+    const data = parseDataCsv(cella('data'));
+    if (!data){ out.scartate.push('Riga ' + num + ': data non valida (“' + cella('data') + '”)'); continue; }
+    let imp = NaN, tipo = tipoDaCsv(cella('tipo'));
+    if (idx.importo != null && cella('importo') !== ''){
+      imp = parseImportoCsv(cella('importo'));
+      if (!tipo){
+        if (opz.tipoDef === 'uscita' || opz.tipoDef === 'entrata') tipo = opz.tipoDef;
+        else if (imp < 0) tipo = 'uscita';
+        else if (imp > 0) tipo = 'entrata';
+      }
+    } else {
+      const e = colE != null ? parseImportoCsv(r[colE]) : NaN, u = colU != null ? parseImportoCsv(r[colU]) : NaN;
+      if (e > 0){ imp = e; tipo = 'entrata'; } else if (u > 0){ imp = u; tipo = 'uscita'; }
+    }
+    if (!isFinite(imp) || Math.abs(imp) === 0 || !tipo){ out.scartate.push('Riga ' + num + ': importo non valido (“' + cella('importo') + '”)'); continue; }
+    imp = Math.round(Math.abs(imp) * 100) / 100;
+    if (imp > 99999999){ out.scartate.push('Riga ' + num + ': importo troppo grande'); continue; }
+    const catNome = cella('categoria');
+    let categoria_id = null;
+    if (catNome){
+      const c = S.categorie.find(x => x.nome.toLowerCase() === catNome.toLowerCase());
+      if (c && c.tipo === tipo) categoria_id = c.id;
+      else if (!c) out.catNuove[catNome.toLowerCase()] = {nome: catNome, tipo: tipo};
+    }
+    const riga = {tipo: tipo, data: data, importo: imp, categoria_id: categoria_id, catNome: catNome,
+      descrizione: cella('descrizione') || null, fornitore: cella('fornitore') || null, note: cella('note') || null, riga: num};
+    riga.dup = esistenti.has(chiaveImport(riga));
+    out.righe.push(riga);
+  }
+  return out;
+}
+async function leggiTestoFile(file){
+  const buf = await file.arrayBuffer();
+  try { return new TextDecoder('utf-8', {fatal: true}).decode(buf); }
+  catch (e){ return new TextDecoder('windows-1252').decode(buf); }
+}
+function sheetImport(){
+  S.imp = {testo: '', nomeFile: '', tipoDef: 'auto', creaCat: true, dup: false, inCorso: false};
+  openSheet('<form class="sheet-head"><h3>Importa da CSV</h3>' +
+    '<button type="button" class="btn small" data-action="close-sheet">Chiudi</button></form>' +
+    '<div class="sheet-card"><div id="imp-body">' +
+      '<div class="hint" style="margin:10px 0">Scegli un file CSV (da Excel, Numbers o dalla banca). La prima riga deve contenere i nomi delle colonne: ' +
+      'servono almeno <b>data</b> e <b>importo</b>. Riconosco anche descrizione, categoria, fornitore, note e tipo (entrata/uscita). ' +
+      'I file esportati da questa app si reimportano così come sono.</div>' +
+      '<button type="button" class="btn primary" data-action="imp-scegli">📂 Scegli il file</button>' +
+      '<div class="hint">Prima di salvare vedrai un\u2019anteprima: finché non confermi, non viene scritto nulla.</div>' +
+    '</div></div>');
+}
+function mostraAnteprimaImport(){
+  const box = document.getElementById('imp-body');
+  if (!box || !S.imp) return;
+  const imp = S.imp;
+  const an = analizzaCsv(imp.testo, imp);
+  if (an.errore){
+    box.innerHTML = '<div class="err show">' + esc(an.errore) + '</div>' +
+      '<button type="button" class="btn" data-action="imp-scegli" style="margin-top:12px">📂 Scegli un altro file</button>';
+    return;
+  }
+  const daImp = an.righe.filter(r => imp.dup || !r.dup);
+  const gia = an.righe.filter(r => r.dup).length;
+  const ent = daImp.filter(r => r.tipo === 'entrata'), usc = daImp.filter(r => r.tipo === 'uscita');
+  const somma = (a) => a.reduce((t, r) => t + r.importo, 0);
+  const nCatNuove = Object.keys(an.catNuove).length;
+  const sw = (on, v) => '<button type="button" class="sw' + (on ? ' on' : '') + '" data-action="imp-toggle" data-v="' + v + '"></button>';
+  let h = '<div class="hint" style="margin:10px 0 8px">File: <b>' + esc(imp.nomeFile || '') + '</b> · ' + an.righe.length + ' righe valide' +
+      (an.scartate.length ? ', ' + an.scartate.length + ' da scartare' : '') + '</div>' +
+    '<div class="kpi-grid" style="margin-bottom:8px">' +
+      '<div class="kpi"><div class="lbl">Uscite</div><div class="val neg" style="font-size:19px">' + fmtMoney(somma(usc)) + '</div><div class="sub">' + usc.length + ' movimenti</div></div>' +
+      '<div class="kpi"><div class="lbl">Entrate</div><div class="val pos" style="font-size:19px">' + fmtMoney(somma(ent)) + '</div><div class="sub">' + ent.length + ' movimenti</div></div>' +
+    '</div>';
+  if (!an.haTipo){
+    h += '<label class="f" for="imp-tipodef">Il file non indica il tipo: considera i movimenti…</label>' +
+      '<select id="imp-tipodef">' +
+        '<option value="auto"' + (imp.tipoDef === 'auto' ? ' selected' : '') + '>in base al segno (− uscita, + entrata)</option>' +
+        '<option value="uscita"' + (imp.tipoDef === 'uscita' ? ' selected' : '') + '>tutti come uscite</option>' +
+        '<option value="entrata"' + (imp.tipoDef === 'entrata' ? ' selected' : '') + '>tutti come entrate</option>' +
+      '</select>';
+  }
+  if (gia){
+    h += '<div class="switch"><div><b>Importa anche i già presenti (' + gia + ')</b><div class="hint" style="margin:2px 0 0">Stessa data, importo, tipo e descrizione di un movimento che hai già. Di norma sono doppioni.</div></div>' + sw(imp.dup, 'dup') + '</div>';
+  }
+  if (nCatNuove){
+    h += '<div class="switch"><div><b>Crea le categorie mancanti (' + nCatNuove + ')</b><div class="hint" style="margin:2px 0 0">' +
+      esc(Object.keys(an.catNuove).slice(0, 4).map(k => an.catNuove[k].nome).join(', ')) + (nCatNuove > 4 ? '…' : '') +
+      '. Se spento, quei movimenti restano senza categoria.</div></div>' + sw(imp.creaCat, 'crea') + '</div>';
+  }
+  if (daImp.length){
+    h += '<h2 style="margin:14px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink2)">Anteprima</h2>' +
+      daImp.slice(0, 5).map(r =>
+        '<div class="row-item"><div class="row-main"><div class="row-t">' + esc(r.descrizione || r.fornitore || 'Senza descrizione') + '</div>' +
+        '<div class="row-s">' + esc(dayLabel(r.data)) + (r.catNome ? ' · ' + esc(r.catNome) : '') + '</div></div>' +
+        '<div class="row-a ' + (r.tipo === 'entrata' ? 'pos' : 'neg') + '">' + (r.tipo === 'entrata' ? '+' : '−') + fmtMoney(r.importo) + '</div></div>').join('') +
+      (daImp.length > 5 ? '<div class="hint">… e altri ' + (daImp.length - 5) + '.</div>' : '');
+  }
+  if (an.scartate.length){
+    h += '<div class="hint" style="margin-top:10px;color:var(--red)">Scartate: ' + esc(an.scartate.slice(0, 5).join(' · ')) +
+      (an.scartate.length > 5 ? ' · e altre ' + (an.scartate.length - 5) : '') + '</div>';
+  }
+  h += '<button type="button" class="btn primary" id="imp-vai" data-action="imp-vai" style="margin-top:14px"' + (daImp.length ? '' : ' disabled') + '>✅ Importa ' +
+    daImp.length + (daImp.length === 1 ? ' movimento' : ' movimenti') + '</button>' +
+    '<button type="button" class="btn ghost" data-action="imp-scegli" style="margin-top:6px">Scegli un altro file</button>';
+  box.innerHTML = h;
+}
+async function eseguiImport(){
+  const imp = S.imp;
+  if (!imp || imp.inCorso) return;
+  const an = analizzaCsv(imp.testo, imp);
+  if (an.errore) return;
+  const daImp = an.righe.filter(r => imp.dup || !r.dup);
+  if (!daImp.length){ toast('Niente da importare'); return; }
+  imp.inCorso = true;
+  const btn = document.getElementById('imp-vai');
+  if (btn){ btn.disabled = true; btn.textContent = 'Importo…'; }
+  let fatti = 0;
+  try {
+    const sb = client();
+    // 1) categorie mancanti (solo se richiesto)
+    const mappa = {};
+    if (imp.creaCat){
+      const nuove = Object.keys(an.catNuove).map(k => an.catNuove[k])
+        .filter(c => !S.categorie.some(x => x.nome.toLowerCase() === c.nome.toLowerCase()));
+      if (nuove.length){
+        const rc = await sb.from('categorie_conto').insert(nuove.map(c => ({nome: c.nome, emoji: '🏷️', tipo: c.tipo, ordine: 500}))).select();
+        if (rc.error) throw rc.error;
+        (rc.data || []).forEach(c => { mappa[c.nome.toLowerCase()] = c.id; });
+      }
+    }
+    // 2) movimenti, a gruppi di 200
+    const payload = daImp.map(r => ({
+      tipo: r.tipo, data: r.data, importo: r.importo,
+      categoria_id: r.categoria_id || (r.catNome ? (mappa[r.catNome.toLowerCase()] || null) : null),
+      descrizione: r.descrizione, fornitore: r.fornitore, note: r.note
+    }));
+    for (let i = 0; i < payload.length; i += 200){
+      const gruppo = payload.slice(i, i + 200);
+      const r = await sb.from('movimenti_conto').insert(gruppo);
+      if (r.error) throw r.error;
+      fatti += gruppo.length;
+      if (btn) btn.textContent = 'Importo… ' + fatti + '/' + payload.length;
+    }
+    closeSheet(); invalidate();
+    try { await reload(); } catch (e){ render(); }
+    toast(fatti + (fatti === 1 ? ' movimento importato ✓' : ' movimenti importati ✓'));
+  } catch (e){
+    imp.inCorso = false;
+    if (btn){ btn.disabled = false; btn.textContent = '✅ Riprova'; }
+    toast((fatti ? 'Importati ' + fatti + ' movimenti, poi: ' : 'Importazione fallita: ') + msg(e));
+    if (fatti){ invalidate(); try { await reload(); } catch (e2){} }
+  }
+}
+document.getElementById('csv-input').addEventListener('change', async function(){
+  const f = this.files && this.files[0];
+  if (!f || !S.imp){ this.value = ''; return; }
+  if (f.size > 2 * 1024 * 1024){ toast('File troppo grande (massimo 2 MB)'); this.value = ''; return; }
+  try { S.imp.testo = await leggiTestoFile(f); S.imp.nomeFile = f.name; }
+  catch (e){ toast('Non riesco a leggere il file'); this.value = ''; return; }
+  this.value = '';
+  mostraAnteprimaImport();
+});
+
 /* ============================================================
    11. HANDLER EVENTI GLOBALI
    ============================================================ */
@@ -1932,7 +2493,7 @@ document.addEventListener('click', async (ev) => {
   const id = t.getAttribute('data-id');
 
   if (a === 'go'){ S.view = v; syncTabs(); render(); window.scrollTo(0,0); }
-  else if (a === 'close-sheet'){ closeSheet(); render(); }
+  else if (a === 'close-sheet'){ await annullaSheet(); }
   else if (a === 'edit'){
     const m = S.movimenti.find(x => String(x.id) === String(id));
     if (m){ sheetMovimento(m); hydrateThumbs(); }
@@ -2031,6 +2592,16 @@ document.addEventListener('click', async (ev) => {
   else if (a === 'vedi-mese'){ S.meseSel = homeMonth(); S.filtroTipo = 'tutti'; S.ricerca = ''; S.view = 'movimenti'; syncTabs(); render(); window.scrollTo(0,0); }
   else if (a === 'add-in-month'){ sheetMovimento(null, homeMonth() + '-01'); }
   else if (a === 'pick-month'){ S.meseSel = v; S.view = 'movimenti'; syncTabs(); render(); window.scrollTo(0,0); }
+  else if (a === 'coda-invia'){ await svuotaCoda(false); }
+  else if (a === 'coda-scarta'){
+    if (window.confirm('Scartare i ' + nInCoda() + ' movimenti in attesa? Non verranno mai inviati.')){ scriviCoda([]); aggiornaBannerCoda(); toast('Coda svuotata'); }
+  }
+  else if (a === 'import-csv'){ sheetImport(); }
+  else if (a === 'imp-scegli'){ document.getElementById('csv-input').click(); }
+  else if (a === 'imp-toggle'){
+    if (S.imp){ if (v === 'dup') S.imp.dup = !S.imp.dup; if (v === 'crea') S.imp.creaCat = !S.imp.creaCat; mostraAnteprimaImport(); }
+  }
+  else if (a === 'imp-vai'){ await eseguiImport(); }
   ev.preventDefault();
 });
 
@@ -2097,6 +2668,7 @@ function avviaApertura(anim){
   app.classList.remove('apre');
   if (anim !== false){ void app.offsetWidth; app.classList.add('apre'); }
   window.scrollTo(0, 0);
+  segnaAttivita();
   mostraSplash(anim === false ? 0 : 520);
 }
 function showLogin(){
@@ -2131,6 +2703,7 @@ async function doLogin(){
   const pass = document.getElementById('li-pass').value;
   if (!email || !pass){ loginError('Scrivi email e password.'); return; }
   btn.disabled = true; btn.textContent = 'Verifico…'; loginError('');
+  S.accedendo = true;   // durante il login l'evento automatico SIGNED_IN va ignorato (ci pensa questa funzione)
   try {
     const sb = client();
     const r = await sb.auth.signInWithPassword({email: email, password: pass});
@@ -2148,6 +2721,7 @@ async function doLogin(){
     loginError(msg(e, 'Accesso non riuscito.'));
   } finally {
     btn.disabled = false; btn.textContent = 'Entra';
+    S.accedendo = false;
   }
 }
 async function doReset(){
@@ -2162,7 +2736,7 @@ async function doReset(){
 async function afterAuth(user, conAnimazione){
   S.user = user;
   if (conAnimazione !== true) avviaApertura(true);
-  try { await loadAll(); render(); }
+  try { await loadAll(); render(); segnaAttivita(); svuotaCoda(true); pulisciTemporanei().catch(() => {}); }
   catch (e){
     if (/CONFIG|LIB/.test(String(e && e.message))){
       loginError('Configurazione mancante: inserisci URL e chiave di Supabase nel file index.html (sezione CONFIGURAZIONE).');
@@ -2187,10 +2761,7 @@ async function boot(){
       : 'Libreria Supabase non caricata: ricarica la pagina.');
     return;
   }
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_OUT'){ S.caricato = false; S.user = null; showLogin(); }
-    else if (event === 'SIGNED_IN' && !S.user){ await afterAuth(session.user); }
-  });
+  collegaAuth(sb);
   const r = await sb.auth.getSession();
   if (r.data && r.data.session && r.data.session.user){
     const u = r.data.session.user;
@@ -2219,7 +2790,7 @@ setTimeout(() => { if (S.user) cercaAggiornamento(true); }, 1500);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && S.user) cercaAggiornamento(true);
 });
-window.addEventListener('online', () => { if (S.user){ invalidate(); reload().catch(() => {}); } });
+window.addEventListener('online', () => { if (S.user){ svuotaCoda(true); invalidate(); reload().catch(() => {}); } });
 boot();
 </script>
 </body>

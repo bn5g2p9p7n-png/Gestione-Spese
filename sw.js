@@ -1,11 +1,12 @@
-/* Service worker — rende l'app utilizzabile anche senza rete (i dati restano sul dispositivo
-   fino alla prossima connessione). Versione = nome cache: **cambiala ogni volta che
+/* Service worker — conserva sul dispositivo i file dell'app (pagina, script, icone), così si apre anche senza rete.
+   I dati di Supabase NON vengono salvati qui: senza rete l'app si apre ma i movimenti si leggono solo online
+   (i nuovi movimenti, invece, vengono messi in coda e inviati dopo). Versione = nome cache: **cambiala ogni volta che
    modifichi index.html**, altrimenti l'app già installata continua a mostrare la
    versione vecchia. La versione la tiene allineata lo script sincronizza-cache.mjs: non cambiarla a mano. */
-const VERSIONE = 'conto-r12';
-const HASH = '27e36616bdc344f7';   // lo scrive sincronizza-cache.mjs: serve a capire se index.html e' cambiato
+const VERSIONE = 'conto-r13';
+const HASH = 'b917e3e35a59a498';   // lo scrive sincronizza-cache.mjs: serve a capire se index.html e' cambiato
 const RISORSE = ['./', './index.html', './supabase.js', './manifest.webmanifest',
-                 './pwa-192.png', './pwa-512.png', './apple-touch-icon.png'];
+                 './pwa-192.png', './pwa-512.png', './pwa-512-maskable.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
@@ -28,6 +29,9 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   const stessaOrigine = url.origin === self.location.origin;
+  // Le richieste con parametri (?verifica=…, ?v=…) servono solo a controllare la rete: vanno lasciate passare
+  // senza salvarle in cache, altrimenti ogni controllo aggiungerebbe una copia da ~150 KB.
+  if (url.search) return;
 
   // L'app (HTML/JS/CSS) prova la rete prima, poi la cache: così le novità si vedono subito.
   e.respondWith((async () => {
