@@ -384,8 +384,8 @@
    Cambialo (r3 -> r4, r5...) ogni volta che modifichi questo file: serve a dire al
    telefono "butta via la copia invecchiata e prendi questa". Lo fa per te lo script
    app/sincronizza-cache.mjs, che chiama anche i test. */
-const APP_REV = 'r13';
-const APP_DATA = '7 ottobre 2026';
+const APP_REV = 'r14';
+const APP_DATA = '8 ottobre 2026';
 
 const FILE_CONFIG = {
   SUPABASE_URL: 'https://________________.supabase.co',
@@ -1227,10 +1227,10 @@ function viewRicorrenti(el){
         '<div class="fila">Prossima: <b>' + esc(dayLabel(x.prossimo)) + '</b> \u2014 il giorno ' +
           parseInt(String(x.ultimo.data).slice(8,10),10) + ' di ogni mese</div>' +
         '<div class="mini-row">' +
-          '<button class="btn" data-action="rec-aperta" data-i="' + i + '">\u270f\ufe0f Cambia importo</button>' +
-          '<button class="btn" data-action="rec-prolunga" data-i="' + i + '">\u2795 Prolunga</button>' +
-          '<button class="btn" data-action="rec-accorcia" data-i="' + i + '">\u2702\ufe0f Accorcia</button>' +
-          '<button class="btn" data-action="rec-dettagli" data-i="' + i + '">\ud83d\udccb Vedi tutto</button>' +
+          '<button class="btn" data-action="rec-aperta" data-k="' + esc(x.chiave) + '">\u270f\ufe0f Cambia importo</button>' +
+          '<button class="btn" data-action="rec-prolunga" data-k="' + esc(x.chiave) + '">\u2795 Prolunga</button>' +
+          '<button class="btn" data-action="rec-accorcia" data-k="' + esc(x.chiave) + '">\u2702\ufe0f Accorcia</button>' +
+          '<button class="btn" data-action="rec-dettagli" data-k="' + esc(x.chiave) + '">\ud83d\udccb Vedi tutto</button>' +
         '</div>' +
       '</div>').join('')
     : '<div class="card"><div class="empty"><b>Nessuna spesa che si ripete</b>' +
@@ -1253,12 +1253,17 @@ function viewRicorrenti(el){
       '(per esempio "pastore" ogni luned\u0300), quella non diventer\u00e0 una serie.</div></div>';
 }
 
+/** Ritrova una serie dalla sua chiave (categoria + nome). Si usa la chiave e non la posizione nell'elenco:
+ *  la posizione cambia se nel frattempo arriva un movimento nuovo, e l'azione colpirebbe la serie sbagliata. */
+function serieDaChiave(k){
+  return serieRicorrenti(S.movimenti, S.categorie).find(s => s.chiave === k) || null;
+}
 /** Etichetta di una serie, usata nelle finestrelle. */
 function serieLabel(x){
   return x.categoria.emoji + ' ' + x.descrizione;
 }
-function sheetRicorrente(tipo, i){
-  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+function sheetRicorrente(tipo, k){
+  const x = serieDaChiave(k);
   if (!x){ toast('Non trovata'); return; }
   const isEntrata = x.tipo === 'entrata';
   let corpo = '';
@@ -1275,26 +1280,26 @@ function sheetRicorrente(tipo, i){
       '<div class="hint" style="margin-top:8px">«Solo i futuri» lascia intatti i mesi già registrati: ' +
         'serve quando l\'affitto cambia da domani. «Anche quelli passati» corregge tutto, utile se ' +
         'l\'hai registrato sbagliato in una botta sola.</div></div>' +
-      '<div class="btn-row"><button type="button" class="btn primary" data-action="rec-salva-imp" data-i="' + i + '">✅ Salva</button></div>';
+      '<div class="btn-row"><button type="button" class="btn primary" data-action="rec-salva-imp" data-k="' + esc(k) + '">✅ Salva</button></div>';
   } else if (tipo === 'prolunga'){
     corpo = '<div class="sheet-card">' +
       '<label class="f" for="rec-mes">Quanti mesi aggiungere</label>' +
       '<input id="rec-mes" type="text" inputmode="numeric" value="12">' +
       '<div class="hint" id="rec-antep">' + anteprimaProlunga(x, 12) + '</div></div>' +
-      '<div class="btn-row"><button type="button" class="btn primary" data-action="rec-salva-prolunga" data-i="' + i + '">✅ Aggiungi</button></div>';
+      '<div class="btn-row"><button type="button" class="btn primary" data-action="rec-salva-prolunga" data-k="' + esc(k) + '">✅ Aggiungi</button></div>';
   } else if (tipo === 'accorcia'){
     const opzioni = [];
-    for (let k = Math.max(1, x.n - 1); k >= 1; k--){
-      const fino = x.righe[k - 1].data;
-      opzioni.push('<button type="button" class="btn" data-action="rec-tieni" data-i="' + i + '" data-fino="' + fino + '" style="margin:4px">' +
-        'Tieni ' + k + ' ' + (k === 1 ? 'mese' : 'mesi') + ' (fino a ' + esc(monthLabel(monthKey(fino))) + ')</button>');
+    for (let q = Math.max(1, x.n - 1); q >= 1; q--){   // q = quanti mesi tenere (non si chiama k: k e' la chiave della serie)
+      const fino = x.righe[q - 1].data;
+      opzioni.push('<button type="button" class="btn" data-action="rec-tieni" data-k="' + esc(k) + '" data-fino="' + fino + '" style="margin:4px">' +
+        'Tieni ' + q + ' ' + (q === 1 ? 'mese' : 'mesi') + ' (fino a ' + esc(monthLabel(monthKey(fino))) + ')</button>');
     }
     corpo = '<div class="sheet-card"><div class="hint" style="margin:0 0 8px">' +
       'Adesso ci sono <b>' + x.n + '</b> ' + (x.n === 1 ? 'movimento' : 'movimenti') + ', ' +
       'da ' + esc(monthLabel(monthKey(x.dal))) + ' a ' + esc(monthLabel(monthKey(x.al))) + '. ' +
       'Scegli quanti tenere: i successivi vengono <b>cancellati</b> (anche eventuali allegati).</div>' +
       opzioni.join('') +
-      '<div class="mini-row"><button type="button" class="btn danger" data-action="rec-ferma" data-i="' + i + '">⏹️ Cancella tutta la serie</button></div>' +
+      '<div class="mini-row"><button type="button" class="btn danger" data-action="rec-ferma" data-k="' + esc(k) + '">⏹️ Cancella tutta la serie</button></div>' +
       '</div>';
   } else if (tipo === 'dettagli'){
     corpo = '<div class="sheet-card">' +
@@ -1327,8 +1332,8 @@ function anteprimaProlunga(x, n){
     (x.n + Math.max(1, n)) + ' spese.';
 }
 /* ---- azioni sulle serie ---- */
-async function recCambiaImporto(i){
-  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+async function recCambiaImporto(k){
+  const x = serieDaChiave(k);
   if (!x) return;
   const nuovo = parseAmount((document.getElementById('rec-imp') || {}).value);
   if (!(nuovo > 0)){ toast('Scrivi un importo valido'); return; }
@@ -1351,8 +1356,8 @@ async function recCambiaImporto(i){
   try { await reload(); } catch (e){ render(); }
   toast(okN + ' ' + (okN === 1 ? 'aggiornato' : 'aggiornati') + ' a ' + fmtMoney(nuovo) + ' ✓');
 }
-async function recProlunga(i){
-  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+async function recProlunga(k){
+  const x = serieDaChiave(k);
   if (!x) return;
   const n = Math.max(1, Math.min(60, parseInt((document.getElementById('rec-mes') || {}).value || '1', 10) || 1));
   const sb = client();
@@ -1378,8 +1383,8 @@ async function recProlunga(i){
   toast(okN + ' ' + (okN === 1 ? 'spesa aggiunta' : 'spese aggiunte') + ' fino a ' +
         monthLabel(monthKey(date[date.length-1])) + ' ✓');
 }
-async function recAccorcia(i, finoISO){
-  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+async function recAccorcia(k, finoISO){
+  const x = serieDaChiave(k);
   if (!x) return;
   const sb = client();
   const daTogliere = x.righe.filter(m => m.data > finoISO);
@@ -1393,8 +1398,8 @@ async function recAccorcia(i, finoISO){
   try { await reload(); } catch (e){ render(); }
   toast(daTogliere.length + ' ' + (daTogliere.length === 1 ? 'spesa tolta' : 'spese tolte') + ' ✓');
 }
-async function recFerma(i){
-  const x = serieRicorrenti(S.movimenti, S.categorie)[i];
+async function recFerma(k){
+  const x = serieDaChiave(k);
   if (!x) return;
   if (!window.confirm('Cancellare tutte le ' + x.n + ' spese di "' + x.descrizione + '"?\n\n' +
       'Non si torna indietro. Se vuoi tenerne qualcuna, usa prima "Accorcia".')) return;
@@ -2491,6 +2496,7 @@ document.addEventListener('click', async (ev) => {
   const a = t.getAttribute('data-action');
   const v = t.getAttribute('data-v');
   const id = t.getAttribute('data-id');
+  const k = t.getAttribute('data-k');     // chiave di una serie ricorrente
 
   if (a === 'go'){ S.view = v; syncTabs(); render(); window.scrollTo(0,0); }
   else if (a === 'close-sheet'){ await annullaSheet(); }
@@ -2516,14 +2522,14 @@ document.addEventListener('click', async (ev) => {
   else if (a === 'aggiorna'){ await aggiornaApp(); }
   else if (a === 'cerca-update'){ await cercaAggiornamento(false); }
   else if (a === 'svuota-cache'){ await svuotaCache(); }
-  else if (a === 'rec-aperta'){ sheetRicorrente('aperta', Number(v)); }
-  else if (a === 'rec-prolunga'){ sheetRicorrente('prolunga', Number(v)); }
-  else if (a === 'rec-accorcia'){ sheetRicorrente('accorcia', Number(v)); }
-  else if (a === 'rec-dettagli'){ sheetRicorrente('dettagli', Number(v)); }
-  else if (a === 'rec-salva-imp'){ await recCambiaImporto(Number(v)); }
-  else if (a === 'rec-salva-prolunga'){ await recProlunga(Number(v)); }
-  else if (a === 'rec-tieni'){ await recAccorcia(Number(v), t.getAttribute('data-fino')); }
-  else if (a === 'rec-ferma'){ await recFerma(Number(v)); }
+  else if (a === 'rec-aperta'){ sheetRicorrente('aperta', k); }
+  else if (a === 'rec-prolunga'){ sheetRicorrente('prolunga', k); }
+  else if (a === 'rec-accorcia'){ sheetRicorrente('accorcia', k); }
+  else if (a === 'rec-dettagli'){ sheetRicorrente('dettagli', k); }
+  else if (a === 'rec-salva-imp'){ await recCambiaImporto(k); }
+  else if (a === 'rec-salva-prolunga'){ await recProlunga(k); }
+  else if (a === 'rec-tieni'){ await recAccorcia(k, t.getAttribute('data-fino')); }
+  else if (a === 'rec-ferma'){ await recFerma(k); }
   else if (a === 'cerca-dup'){ sheetDuplicati(); }
   else if (a === 'ripulisci-dup'){ await ripulisciDuplicati(); }
   else if (a === 'close-viewer'){ closeViewer(); }
